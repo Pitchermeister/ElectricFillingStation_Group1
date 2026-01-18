@@ -2,13 +2,23 @@ package org.example;
 
 public class PriceConfiguration {
     private int priceConfigId;
+
     private double acPricePerKWh;
     private double dcPricePerKWh;
 
-    public PriceConfiguration(int id, double acPrice, double dcPrice) {
+    private double acPricePerMinute;
+    private double dcPricePerMinute;
+
+    public PriceConfiguration(int id,
+                              double acPricePerKWh,
+                              double dcPricePerKWh,
+                              double acPricePerMinute,
+                              double dcPricePerMinute) {
         this.priceConfigId = id;
-        this.acPricePerKWh = acPrice;
-        this.dcPricePerKWh = dcPrice;
+        this.acPricePerKWh = acPricePerKWh;
+        this.dcPricePerKWh = dcPricePerKWh;
+        this.acPricePerMinute = acPricePerMinute;
+        this.dcPricePerMinute = dcPricePerMinute;
     }
 
     public int getPriceConfigId() {
@@ -19,17 +29,35 @@ public class PriceConfiguration {
         this.priceConfigId = priceConfigId;
     }
 
-
+    public double getAcPricePerKWh() {
+        return acPricePerKWh;
+    }
 
     public void setAcPricePerKWh(double acPricePerKWh) {
         this.acPricePerKWh = acPricePerKWh;
     }
 
+    public double getDcPricePerKWh() {
+        return dcPricePerKWh;
+    }
 
     public void setDcPricePerKWh(double dcPricePerKWh) {
         this.dcPricePerKWh = dcPricePerKWh;
     }
-    public double getDcPricePerKWh() { return dcPricePerKWh; }
-    public double getAcPricePerKWh() { return acPricePerKWh; }
 
+    public double getAcPricePerMinute() {
+        return acPricePerMinute;
+    }
+
+    public void setAcPricePerMinute(double acPricePerMinute) {
+        this.acPricePerMinute = acPricePerMinute;
+    }
+
+    public double getDcPricePerMinute() {
+        return dcPricePerMinute;
+    }
+
+    public void setDcPricePerMinute(double dcPricePerMinute) {
+        this.dcPricePerMinute = dcPricePerMinute;
+    }
 }

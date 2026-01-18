@@ -41,4 +41,13 @@ public class StationManager {
         }
         return null; // Not found
     }
+
+    public Location getLocationById(int id) {
+        for (Location loc : locationDatabase) {
+            if (loc.getLocationId() == id) {
+                return loc;
+            }
+        }
+        return null;
+    }
 }
