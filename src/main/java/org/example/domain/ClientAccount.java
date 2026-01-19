@@ -1,4 +1,4 @@
-package org.example;
+package org.example.domain;
 
 public class ClientAccount {
     private double balance;
@@ -11,8 +11,8 @@ public class ClientAccount {
         this.balance += amount;
     }
 
-    public void debit(double amount ) {
-        //if (amount > balance) throw new IllegalStateException("Insufficient balance");
+    public void debit(double amount) {
+        if (amount > balance) throw new IllegalStateException("Insufficient balance");
         this.balance -= amount;
     }
 

@@ -1,4 +1,4 @@
-package org.example;
+package org.example.domain;
 
 import java.time.LocalDateTime;
 
@@ -6,6 +6,7 @@ public class InvoiceEntry {
 
     private int itemNumber;
     private int clientId;
+    private long sessionId;
 
     private String locationName;
     private int chargerId;
@@ -19,6 +20,7 @@ public class InvoiceEntry {
 
     public InvoiceEntry(int itemNumber,
                         int clientId,
+                        long sessionId,
                         String locationName,
                         int chargerId,
                         ChargerType mode,
@@ -29,6 +31,7 @@ public class InvoiceEntry {
 
         this.itemNumber = itemNumber;
         this.clientId = clientId;
+        this.sessionId = sessionId;
         this.locationName = locationName;
         this.chargerId = chargerId;
         this.mode = mode;
@@ -40,6 +43,7 @@ public class InvoiceEntry {
 
     public int getItemNumber() { return itemNumber; }
     public int getClientId() { return clientId; }
+    public long getSessionId() { return sessionId; }
     public String getLocationName() { return locationName; }
     public int getChargerId() { return chargerId; }
     public ChargerType getMode() { return mode; }
@@ -51,7 +55,8 @@ public class InvoiceEntry {
     @Override
     public String toString() {
         return itemNumber + ") " +
-                "Location: " + locationName +
+                "Session: " + sessionId +
+                ", Location: " + locationName +
                 ", Charger: " + chargerId +
                 ", Mode: " + mode +
                 ", Duration: " + durationMinutes + " min" +
