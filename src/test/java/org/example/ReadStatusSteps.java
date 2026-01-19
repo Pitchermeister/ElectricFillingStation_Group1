@@ -11,6 +11,7 @@ import org.example.domain.*;
 import org.junit.jupiter.api.Assertions;
 
 import java.time.LocalDateTime;
+import java.util.Locale;
 
 public class ReadStatusSteps {
 
@@ -28,26 +29,45 @@ public class ReadStatusSteps {
         chargingService = new ChargingService(clientManager, stationManager, billingManager);
     }
 
-    @Given("the system is initialized")
+    @Given("the status monitoring system is initialized")
     public void the_system_is_initialized() {
         Assertions.assertNotNull(stationManager);
     }
 
-    @Given("a location with ID {int} {string} exists with {int} chargers")
+    @Given("a status monitored location with ID {int} {string} exists with {int} chargers")
     public void location_with_name_and_chargers(Integer id, String name, Integer count) {
         stationManager.createLocation(id, name, "Address");
+
+        // FIX: Add default pricing so chargers are valid for sessions immediately
+        PriceConfiguration defaultPrice = new PriceConfiguration(id, 0.45, 0.65, 0.20, 0.20);
+
         for (int i = 0; i < count; i++) {
             Charger charger = new Charger(id * 100 + i, 900000, 150.0);
+            charger.setPriceConfiguration(defaultPrice); // Set price!
             stationManager.addChargerToLocation(id, charger);
         }
     }
 
-    @Given("location {int} has pricing AC €{double}/kWh")
+    @Given("a status monitored location with ID {int} exists with {int} chargers")
+    public void location_exists_with_chargers(Integer id, Integer count) {
+        stationManager.createLocation(id, "Location " + id, "Address");
+
+        // FIX: Add default pricing here too
+        PriceConfiguration defaultPrice = new PriceConfiguration(id, 0.45, 0.65, 0.20, 0.20);
+
+        for (int i = 0; i < count; i++) {
+            Charger charger = new Charger(id * 100 + i, 900000, 150.0);
+            charger.setPriceConfiguration(defaultPrice); // Set price!
+            stationManager.addChargerToLocation(id, charger);
+        }
+    }
+
+    @Given("status location {int} has pricing AC {double} EUR per kWh")
     public void location_has_pricing(Integer locId, Double ac) {
         stationManager.updateLocationPricing(locId, ac, 0.65, 0.20, 0.20);
     }
 
-    @Given("a client with ID {int} exists with balance €{double}")
+    @Given("a monitoring client with ID {int} exists with balance {double} EUR")
     public void client_exists_with_balance(Integer id, Double balance) {
         Client client = clientManager.registerClient(id, "Client " + id, "client" + id + "@test.com");
         client.getAccount().topUp(balance);
@@ -58,12 +78,18 @@ public class ReadStatusSteps {
         Client client = clientManager.getAllClients().get(0);
         Location loc = stationManager.getAllLocations().get(0);
 
+        // Double check charger existence and price to prevent crashes
+        Charger charger = stationManager.findChargerById(chargerId);
+        if (charger.getPriceConfiguration() == null) {
+            charger.setPriceConfiguration(new PriceConfiguration(999, 0.45, 0.65, 0.20, 0.20));
+        }
+
         chargingService.startSession(
-            client.getClientId(),
-            loc.getLocationId(),
-            chargerId,
-            ChargerType.AC,
-            LocalDateTime.now()
+                client.getClientId(),
+                loc.getLocationId(),
+                chargerId,
+                ChargerType.AC,
+                LocalDateTime.now()
         );
     }
 
@@ -77,9 +103,14 @@ public class ReadStatusSteps {
         Assertions.assertTrue(networkStatus.contains(name));
     }
 
-    @Then("the status should show AC price €{double}/kWh")
+    @Then("the status should show AC price {double}")
     public void status_should_show_ac_price(Double price) {
-        Assertions.assertTrue(networkStatus.contains(String.format("%.2f", price)));
+        // FIX: Enforce US formatting (dots) to match StationManager output "0.45"
+        // preventing "0,45" failure on European computers.
+        String expectedPrice = String.format(Locale.US, "%.2f", price); // "0.45"
+
+        Assertions.assertTrue(networkStatus.contains(expectedPrice),
+                "Status did not contain price: " + expectedPrice + "\nActual status: " + networkStatus);
     }
 
     @Then("the status should show {int} chargers")

@@ -17,29 +17,34 @@ public class UpdatePrepaidCreditSteps {
         clientManager = new ClientManager();
     }
 
-    @Given("the system is initialized")
+    // UPDATED: Unique wording
+    @Given("the update-credit service is initialized")
     public void the_system_is_initialized() {
         Assertions.assertNotNull(clientManager);
     }
 
-    @Given("a client with ID {int} exists")
+    // UPDATED: Unique wording
+    @Given("an update-credit client with ID {int} exists")
     public void client_exists(Integer id) {
         clientManager.registerClient(id, "Client " + id, "client" + id + "@test.com");
     }
 
-    @Given("a client with ID {int} exists with balance €{double}")
+    // UPDATED: Unique wording + removed symbol
+    @Given("an update-credit client with ID {int} exists with balance {double} EUR")
     public void client_exists_with_balance(Integer id, Double balance) {
         Client client = clientManager.registerClient(id, "Client " + id, "client" + id + "@test.com");
         client.getAccount().topUp(balance);
     }
 
-    @When("the client tops up €{double}")
+    // UPDATED: Unique wording + removed symbol
+    @When("the update-credit client tops up {double} EUR")
     public void client_tops_up(Double amount) {
         Client client = clientManager.getAllClients().get(clientManager.getAllClients().size() - 1);
         client.getAccount().topUp(amount);
     }
 
-    @Then("the client balance should be €{double}")
+    // UPDATED: Removed symbol
+    @Then("the client balance should be {double} EUR")
     public void client_balance_should_be(Double expected) {
         Client client = clientManager.getAllClients().get(clientManager.getAllClients().size() - 1);
         Assertions.assertEquals(expected, client.getAccount().getBalance(), 0.01);

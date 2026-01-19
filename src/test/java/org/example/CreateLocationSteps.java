@@ -18,7 +18,8 @@ public class CreateLocationSteps {
         stationManager = new StationManager();
     }
 
-    @Given("the system is initialized")
+    // UPDATED: Made unique to avoid conflict with CreateClientSteps
+    @Given("the location service is initialized")
     public void the_system_is_initialized() {
         Assertions.assertNotNull(stationManager);
     }

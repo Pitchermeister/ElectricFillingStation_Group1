@@ -19,29 +19,34 @@ public class ReadChargerInformationSteps {
         stationManager = new StationManager();
     }
 
-    @Given("the system is initialized")
+    // UPDATED: Unique wording
+    @Given("the charger info service is initialized")
     public void the_system_is_initialized() {
         Assertions.assertNotNull(stationManager);
     }
 
-    @Given("a location with ID {int} exists")
+    // UPDATED: Unique wording
+    @Given("an info-service location with ID {int} exists")
     public void a_location_exists(Integer id) {
         stationManager.createLocation(id, "Location " + id, "Address " + id);
     }
 
-    @Given("a charger with ID {int} and {double} kW exists at location {int}")
+    // UPDATED: Unique wording
+    @Given("an info-service charger with ID {int} and {double} kW exists at location {int}")
     public void charger_exists_at_location(Integer chargerId, Double power, Integer locId) {
         Charger charger = new Charger(chargerId, 900000, power);
         stationManager.addChargerToLocation(locId, charger);
     }
 
-    @Given("a charger with ID {int} exists at location {int}")
+    // UPDATED: Unique wording
+    @Given("an info-service charger with ID {int} exists at location {int}")
     public void charger_exists(Integer chargerId, Integer locId) {
         Charger charger = new Charger(chargerId, 900000, 150.0);
         stationManager.addChargerToLocation(locId, charger);
     }
 
-    @Given("location {int} has pricing AC €{double}/kWh")
+    // UPDATED: Unique wording + removed symbols
+    @Given("info-service location {int} has pricing AC {double} EUR per kWh")
     public void location_has_pricing(Integer locId, Double ac) {
         stationManager.updateLocationPricing(locId, ac, 0.65, 0.20, 0.20);
     }
@@ -72,7 +77,8 @@ public class ReadChargerInformationSteps {
         Assertions.assertNotNull(lastCreatedCharger.getStatus());
     }
 
-    @Then("I should see AC price €{double}/kWh")
+    // UPDATED: Removed symbols
+    @Then("I should see AC price {double} EUR per kWh")
     public void i_should_see_ac_price(Double price) {
         PriceConfiguration pricing = lastCreatedCharger.getPriceConfiguration();
         Assertions.assertNotNull(pricing);

@@ -18,29 +18,34 @@ public class ReadPrepaidCreditSteps {
         clientManager = new ClientManager();
     }
 
-    @Given("the system is initialized")
+    // UPDATED: Unique wording
+    @Given("the read-credit service is initialized")
     public void the_system_is_initialized() {
         Assertions.assertNotNull(clientManager);
     }
 
-    @Given("a client with ID {int} exists")
+    // UPDATED: Unique wording
+    @Given("a read-credit client with ID {int} exists")
     public void client_exists(Integer id) {
         clientManager.registerClient(id, "Client " + id, "client" + id + "@test.com");
     }
 
-    @Given("a client with ID {int} exists with balance €{double}")
+    // UPDATED: Unique wording + removed symbol
+    @Given("a read-credit client with ID {int} exists with balance {double} EUR")
     public void client_exists_with_balance(Integer id, Double balance) {
         Client client = clientManager.registerClient(id, "Client " + id, "client" + id + "@test.com");
         client.getAccount().topUp(balance);
     }
 
-    @Given("the client tops up €{double}")
+    // UPDATED: Unique wording + removed symbol
+    @Given("the read-credit client tops up {double} EUR")
     public void the_client_tops_up(Double amount) {
         Client client = clientManager.getAllClients().get(0);
         client.getAccount().topUp(amount);
     }
 
-    @Given("the client spends €{double} on charging")
+    // UPDATED: Unique wording + removed symbol
+    @Given("the read-credit client spends {double} EUR on charging")
     public void client_spends(Double amount) {
         Client client = clientManager.getAllClients().get(0);
         client.getAccount().debit(amount);
@@ -52,7 +57,8 @@ public class ReadPrepaidCreditSteps {
         lastBalance = client.getAccount().getBalance();
     }
 
-    @Then("the balance should be €{double}")
+    // UPDATED: Removed symbol
+    @Then("the balance should be {double} EUR")
     public void balance_should_be(Double expected) {
         Assertions.assertEquals(expected, lastBalance, 0.01);
     }

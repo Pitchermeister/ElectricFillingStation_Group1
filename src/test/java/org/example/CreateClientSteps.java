@@ -18,7 +18,8 @@ public class CreateClientSteps {
         clientManager = new ClientManager();
     }
 
-    @Given("the system is initialized")
+    // UPDATED: Unique wording "client management system"
+    @Given("the client management system is initialized")
     public void the_system_is_initialized() {
         Assertions.assertNotNull(clientManager);
     }

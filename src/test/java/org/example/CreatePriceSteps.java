@@ -19,12 +19,14 @@ public class CreatePriceSteps {
         stationManager = new StationManager();
     }
 
-    @Given("the system is initialized")
+    // UPDATED: Unique wording
+    @Given("the pricing service is initialized")
     public void the_system_is_initialized() {
         Assertions.assertNotNull(stationManager);
     }
 
-    @Given("a location with ID {int} exists with {int} charger")
+    // UPDATED: Unique wording "pricing location" to avoid conflict
+    @Given("a pricing location with ID {int} exists with {int} charger")
     public void location_exists_with_chargers(Integer locId, Integer count) {
         stationManager.createLocation(locId, "Location " + locId, "Address");
         for (int i = 0; i < count; i++) {
@@ -33,23 +35,27 @@ public class CreatePriceSteps {
         }
     }
 
-    @When("I set pricing for location {int}: AC €{double}/kWh, DC €{double}/kWh, €{double}/min")
+    // UPDATED: Removed symbols
+    @When("I set pricing for location {int}: AC {double} EUR per kWh, DC {double} EUR per kWh, {double} EUR per min")
     public void i_set_pricing(Integer locId, Double ac, Double dc, Double min) {
         stationManager.updateLocationPricing(locId, ac, dc, min, min);
     }
 
-    @When("I set location {int} pricing: AC €{double}/kWh")
+    // UPDATED: Removed symbols
+    @When("I set location {int} pricing: AC {double} EUR per kWh")
     public void i_set_location_pricing(Integer locId, Double ac) {
         stationManager.updateLocationPricing(locId, ac, 0.65, 0.20, 0.20);
     }
 
-    @Then("location {int} should have AC price €{double}/kWh")
+    // UPDATED: Removed symbols
+    @Then("location {int} should have AC price {double} EUR per kWh")
     public void location_should_have_ac_price(Integer locId, Double price) {
         PriceConfiguration pricing = stationManager.getPricingForLocation(locId);
         Assertions.assertEquals(price, pricing.getAcPricePerKWh(), 0.01);
     }
 
-    @Then("location {int} should have DC price €{double}/kWh")
+    // UPDATED: Removed symbols
+    @Then("location {int} should have DC price {double} EUR per kWh")
     public void location_should_have_dc_price(Integer locId, Double price) {
         PriceConfiguration pricing = stationManager.getPricingForLocation(locId);
         Assertions.assertEquals(price, pricing.getDcPricePerKWh(), 0.01);
