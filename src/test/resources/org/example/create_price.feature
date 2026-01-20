@@ -14,8 +14,11 @@ Feature: Create Price
   Scenario: Different locations have different prices
     Given the pricing service is initialized
     And a pricing location with ID 1 exists with 1 charger
+    #nutzlose Information
     And a pricing location with ID 2 exists with 1 charger
     When I set location 1 pricing: AC 0.40 EUR per kWh
     And I set location 2 pricing: AC 0.50 EUR per kWh
     Then location 1 should have AC price 0.40 EUR per kWh
     And location 2 should have AC price 0.50 EUR per kWh
+
+    # Datum und Uhrzeit fehlt

@@ -8,6 +8,7 @@ Feature: Update Prepaid Credit
     Given the update-credit service is initialized
     # UPDATED: Unique wording
     And an update-credit client with ID 1 exists
+      # hier eher den Namen schreiben
     # UPDATED: No symbol
     When the update-credit client tops up 50.00 EUR
     Then the client balance should be 50.00 EUR

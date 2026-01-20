@@ -11,6 +11,7 @@ Feature: Vehicle Charging
     Given a customer with ID 1 exists with balance 50.00 EUR
     And a charging location with ID 1 exists with 1 charger
     And the specific charger has pricing AC 0.45 EUR per kWh and 0.20 EUR per min
+    #auch unnötig
     When the customer starts an AC charging session
     Then the charging session should be active
     And the specific charger should be occupied
@@ -27,6 +28,7 @@ Feature: Vehicle Charging
     # UPDATED: Replaced € with EUR
     And the customer balance should be 40.37 EUR
     And the specific charger should be available
+    #Rechnung erstellen
 
   Scenario: Cannot start session without sufficient balance
     # UPDATED: Replaced € with EUR
@@ -54,3 +56,5 @@ Feature: Vehicle Charging
     And customer 1 has an active session
     When customer 2 attempts to start a charging session
     Then the session start should fail
+
+    #eine Tabelle von Kunden und Tanken

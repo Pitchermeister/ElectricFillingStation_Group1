@@ -12,6 +12,7 @@ Feature: Read Invoice
     And the invoicing client completes a charging session
     When I request the invoice for client 1
     Then the invoice should show the session details
+    #weleche details?
     And the invoice should show the location name
     And the invoice should show the charged kWh
     And the invoice should show the price
