@@ -37,9 +37,18 @@ public class ChargingService {
         if (charger == null) throw new IllegalArgumentException("Charger not found: " + chargerId);
         if (charger.getStatus() == ChargerStatus.OUT_OF_ORDER) throw new IllegalStateException("Charger is out of service");
         if (charger.getStatus() != ChargerStatus.IN_OPERATION_FREE) throw new IllegalStateException("Charger is not available");
-        if (charger.getPriceConfiguration() == null) throw new IllegalStateException("No price configuration set for charger");
         return charger;
     }
+
+    private Location requireLocationWithPricing(int locationId) {
+        Location loc = stationManager.getLocationById(locationId);
+        if (loc == null) throw new IllegalArgumentException("Location not found: " + locationId);
+        if (loc.getPriceConfiguration() == null) {
+            throw new IllegalStateException("No price configuration set for location: " + locationId);
+        }
+        return loc;
+    }
+
 
     public ChargingSession startSession(int clientId,
                                         int locationId,
@@ -59,7 +68,9 @@ public class ChargingService {
         long sessionId = nextSessionId++;
 
 
-        PriceConfiguration priceSnapshot = new PriceConfiguration(charger.getPriceConfiguration());
+        Location loc = requireLocationWithPricing(locationId);
+        PriceConfiguration priceSnapshot = new PriceConfiguration(loc.getPriceConfiguration());
+
 
         activeSession = new ChargingSession(
                 sessionId,

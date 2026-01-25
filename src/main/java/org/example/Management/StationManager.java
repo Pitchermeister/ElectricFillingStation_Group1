@@ -65,23 +65,22 @@ public class StationManager {
     }
 
     // PRICING - can be updated multiple times per day
+// PRICING - can be updated multiple times per day
     public void updateLocationPricing(int locationId, double acKWh, double dcKWh, double acMin, double dcMin) {
         Location location = getLocationById(locationId);
-        if (location == null || location.getChargers().isEmpty()) return;
+        if (location == null) return;
 
-        PriceConfiguration pricing = new PriceConfiguration(
-                System.identityHashCode(location), acKWh, dcKWh, acMin, dcMin);
-
-        for (Charger charger : location.getChargers()) {
-            charger.setPriceConfiguration(pricing);
-        }
+        // ✅ stable id: locationId (instead of identityHashCode)
+        PriceConfiguration pricing = new PriceConfiguration(locationId, acKWh, dcKWh, acMin, dcMin);
+        location.setPriceConfiguration(pricing);
     }
 
     public PriceConfiguration getPricingForLocation(int locationId) {
         Location location = getLocationById(locationId);
-        if (location == null || location.getChargers().isEmpty()) return null;
-        return location.getChargers().get(0).getPriceConfiguration();
+        if (location == null) return null;
+        return location.getPriceConfiguration();
     }
+
 
     // NETWORK STATUS
     public int getAvailableChargersCount() {

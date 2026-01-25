@@ -11,6 +11,7 @@ public class Location {
     private double longitude;
 
     // Relationship: One Location has many Chargers
+    private PriceConfiguration priceConfiguration;
     private List<Charger> chargers;
 
     public Location(int id, String name, String address) {
@@ -18,6 +19,7 @@ public class Location {
         this.name = name;
         this.address = address;
         this.chargers = new ArrayList<>();
+        this.priceConfiguration = null;
     }
 
     public void addCharger(Charger charger) {
@@ -25,18 +27,54 @@ public class Location {
     }
 
     // Getters
-    public List<Charger> getChargers() { return chargers; }
-    public int getLocationId() { return locationId; }
-    public String getName() { return name; }
-    public String getAddress() { return address; }
-    public double getLatitude() { return latitude; }
-    public double getLongitude() { return longitude; }
+    public List<Charger> getChargers() {
+        return chargers;
+    }
+
+    public int getLocationId() {
+        return locationId;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public String getAddress() {
+        return address;
+    }
+
+    public double getLatitude() {
+        return latitude;
+    }
+
+    public double getLongitude() {
+        return longitude;
+    }
+
+    public PriceConfiguration getPriceConfiguration() {
+        return priceConfiguration;
+    }
 
     // Setters
-    public void setName(String name) { this.name = name; }
-    public void setAddress(String address) { this.address = address; }
-    public void setLatitude(double latitude) { this.latitude = latitude; }
-    public void setLongitude(double longitude) { this.longitude = longitude; }
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public void setAddress(String address) {
+        this.address = address;
+    }
+
+    public void setLatitude(double latitude) {
+        this.latitude = latitude;
+    }
+
+    public void setLongitude(double longitude) {
+        this.longitude = longitude;
+    }
+
+    public void setPriceConfiguration(PriceConfiguration priceConfiguration) {
+        this.priceConfiguration = priceConfiguration;
+    }
 
     @Override
     public String toString() {
@@ -47,6 +85,7 @@ public class Location {
                 ", lat=" + latitude +
                 ", lng=" + longitude +
                 ", chargers=" + chargers.size() +
+                ", pricingSet=" + (priceConfiguration != null) +
                 '}';
     }
 }

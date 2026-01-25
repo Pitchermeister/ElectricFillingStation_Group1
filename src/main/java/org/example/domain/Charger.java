@@ -5,7 +5,6 @@ public class Charger {
     private int serialNumber;
     private double maxPowerKw;
     private ChargerStatus status;
-    private PriceConfiguration priceConfig;
     private int locationId; // Reference to Location
 
     public Charger(int id, int serialNumber, double maxPowerKw) {
@@ -17,10 +16,6 @@ public class Charger {
     }
 
     // --- GETTERS ---
-
-    public PriceConfiguration getPriceConfiguration() {
-        return priceConfig;
-    }
 
     public int getChargerId() {
         return chargerId;
@@ -43,11 +38,6 @@ public class Charger {
     }
 
     // --- SETTERS ---
-
-    public void setPriceConfiguration(PriceConfiguration config) {
-        this.priceConfig = config;
-    }
-
     public void setChargerId(int chargerId) {
         this.chargerId = chargerId;
     }
