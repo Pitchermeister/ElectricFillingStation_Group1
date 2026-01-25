@@ -7,8 +7,17 @@ import java.util.List;
 
 public class ClientManager {
     private List<Client> clientDatabase = new ArrayList<>();
+    private int id = 1;
 
     // CREATE
+    public Client registerClient(String name, String email) {
+        Client newClient = new Client(this.id, name, email);
+        clientDatabase.add(newClient);
+        System.out.println("Client registered: " + name);
+        this.id += 1;
+        return newClient;
+    }
+
     public Client registerClient(int id, String name, String email) {
         Client newClient = new Client(id, name, email);
         clientDatabase.add(newClient);

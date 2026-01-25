@@ -8,51 +8,82 @@ import org.example.Management.ClientManager;
 import org.example.domain.Client;
 import org.junit.jupiter.api.Assertions;
 
+import java.util.HashMap;
+import java.util.Map;
+
 public class UpdatePrepaidCreditSteps {
 
     private ClientManager clientManager;
 
+    // name -> client mapping (no IDs in feature)
+    private Map<String, Client> clientsByName;
+    private int nextClientId;
+
     @Before
     public void setup() {
         clientManager = new ClientManager();
+        clientsByName = new HashMap<>();
+        nextClientId = 1;
     }
 
-    // UPDATED: Unique wording
     @Given("the update-credit service is initialized")
     public void the_system_is_initialized() {
         Assertions.assertNotNull(clientManager);
     }
 
-    // UPDATED: Unique wording
-    @Given("an update-credit client with ID {int} exists")
-    public void client_exists(Integer id) {
-        clientManager.registerClient(id, "Client " + id, "client" + id + "@test.com");
+    @Given("an update-credit customer {string} exists")
+    public void customer_exists(String name) {
+        ensureCustomerExists(name);
     }
 
-    // UPDATED: Unique wording + removed symbol
-    @Given("an update-credit client with ID {int} exists with balance {double} EUR")
-    public void client_exists_with_balance(Integer id, Double balance) {
-        Client client = clientManager.registerClient(id, "Client " + id, "client" + id + "@test.com");
+    @Given("an update-credit customer {string} exists with balance {double} EUR")
+    public void customer_exists_with_balance(String name, Double balance) {
+        Client client = ensureCustomerExists(name);
         client.getAccount().topUp(balance);
     }
 
-    // UPDATED: Unique wording + removed symbol
-    @When("the update-credit client tops up {double} EUR")
-    public void client_tops_up(Double amount) {
-        Client client = clientManager.getAllClients().get(clientManager.getAllClients().size() - 1);
+    // ✅ UNIQUE wording => avoids duplicate with ReadPrepaidCreditSteps
+    @When("the update-credit customer {string} tops up {double} EUR")
+    public void customer_tops_up(String name, Double amount) {
+        Client client = requireCustomer(name);
         client.getAccount().topUp(amount);
     }
 
-    // UPDATED: Removed symbol
-    @Then("the client balance should be {double} EUR")
-    public void client_balance_should_be(Double expected) {
-        Client client = clientManager.getAllClients().get(clientManager.getAllClients().size() - 1);
+    // ✅ UNIQUE wording => avoids duplicate with ReadPrepaidCreditSteps
+    @Then("the update-credit customer {string} balance should be {double} EUR")
+    public void customer_balance_should_be(String name, Double expected) {
+        Client client = requireCustomer(name);
         Assertions.assertEquals(expected, client.getAccount().getBalance(), 0.01);
     }
 
-    @Then("the client should be able to charge")
-    public void client_should_be_able_to_charge() {
-        Client client = clientManager.getAllClients().get(0);
-        Assertions.assertTrue(client.getAccount().getBalance() >= 1.0);
+    // ✅ UNIQUE wording => avoids duplicate with ReadPrepaidCreditSteps
+    @Then("the update-credit customer {string} should be able to charge")
+    public void customer_should_be_able_to_charge(String name) {
+        Client client = requireCustomer(name);
+        Assertions.assertTrue(
+                client.getAccount().getBalance() >= 1.0,
+                "Expected at least EUR 1.00 to start charging, but was " + client.getAccount().getBalance()
+        );
+    }
+
+    // -------------------
+    // Helpers
+    // -------------------
+
+    private Client ensureCustomerExists(String name) {
+        if (clientsByName.containsKey(name)) return clientsByName.get(name);
+
+        int id = nextClientId++;
+        String email = name.toLowerCase().replace(" ", ".") + "@test.com";
+        Client client = clientManager.registerClient(id, name, email);
+
+        clientsByName.put(name, client);
+        return client;
+    }
+
+    private Client requireCustomer(String name) {
+        Client client = clientsByName.get(name);
+        Assertions.assertNotNull(client, "Unknown customer: " + name);
+        return client;
     }
 }

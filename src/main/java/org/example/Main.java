@@ -83,7 +83,7 @@ public class Main {
                 Charger charger = new Charger(chargerId++, 900000 + chargerId, power);
                 stationManager.addChargerToLocation(locId, charger);
             }
-            System.out.println("✓ Location " + locId + ": " + chargersPerLocation[i] + " chargers added");
+            System.out.println("✓ Location " + stationManager.getLocationById(locId).getName() + ": " + chargersPerLocation[i] + " chargers added");
         }
         System.out.println("→ Total chargers: " + stationManager.getTotalChargersCount());
 

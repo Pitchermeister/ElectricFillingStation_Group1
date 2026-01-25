@@ -24,14 +24,14 @@ public class CreateLocationSteps {
         Assertions.assertNotNull(stationManager);
     }
 
-    @When("I create a location with ID {int}, name {string} and address {string}")
-    public void i_create_location(Integer id, String name, String address) {
-        lastCreatedLocation = stationManager.createLocation(id, name, address);
+    @When("I create a location with name {string} and address {string}")
+    public void i_create_location(String name, String address) {
+        lastCreatedLocation = stationManager.createLocation(name, address);
     }
 
-    @When("I create location ID {int} {string} at {string}")
-    public void i_create_location_short(Integer id, String name, String address) {
-        stationManager.createLocation(id, name, address);
+    @When("I create location {string} at {string}")
+    public void i_create_location_short(String name, String address) {
+        stationManager.createLocation(name, address);
     }
 
     @Then("the location should be saved")
@@ -39,10 +39,6 @@ public class CreateLocationSteps {
         Assertions.assertNotNull(lastCreatedLocation);
     }
 
-    @Then("the location should have ID {int}")
-    public void location_should_have_id(Integer id) {
-        Assertions.assertEquals(id.intValue(), lastCreatedLocation.getLocationId());
-    }
 
     @Then("the location should have name {string}")
     public void location_should_have_name(String name) {

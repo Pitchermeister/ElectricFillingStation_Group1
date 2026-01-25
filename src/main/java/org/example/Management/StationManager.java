@@ -13,8 +13,16 @@ import java.util.List;
  */
 public class StationManager {
     private final List<Location> locations = new ArrayList<>();
+    private int id = 1;
 
     // CREATE
+
+    public Location createLocation(String name, String address) {
+        Location location = new Location(this.id, name, address);
+        locations.add(location);
+        this.id =+ 10;
+        return location;
+    }
     public Location createLocation(int id, String name, String address) {
         Location location = new Location(id, name, address);
         locations.add(location);

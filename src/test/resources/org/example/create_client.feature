@@ -6,9 +6,8 @@ Feature: Create Client
   Scenario: Register a new client
     # UPDATED LINE:
     Given the client management system is initialized
-    When I register a client with ID 1, name "John Doe" and email "john@example.com"
+    When I register a client with name "John Doe" and email "john@example.com"
     Then the client should be saved in the system
-    And the client should have ID 1
     And the client should have name "John Doe"
     And the client should have email "john@example.com"
     And the client should have zero balance
@@ -16,6 +15,6 @@ Feature: Create Client
   Scenario: Register multiple clients
     # UPDATED LINE:
     Given the client management system is initialized
-    When I register client ID 1 "Alice" with email "alice@test.com"
-    And I register client ID 2 "Bob" with email "bob@test.com"
+    When I register client "Alice" with email "alice@test.com"
+    And I register client "Bob" with email "bob@test.com"
     Then the system should have 2 clients

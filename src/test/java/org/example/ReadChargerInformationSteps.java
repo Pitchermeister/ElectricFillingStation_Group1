@@ -10,86 +10,109 @@ import org.example.domain.Location;
 import org.example.domain.PriceConfiguration;
 import org.junit.jupiter.api.Assertions;
 
+import java.util.HashMap;
+import java.util.Map;
+
 public class ReadChargerInformationSteps {
 
     private StationManager stationManager;
-    private Charger lastCreatedCharger;
+    private Charger selectedCharger;
+
+    // map location names -> internal ids (hidden from feature)
+    private final Map<String, Integer> locationNameToId = new HashMap<>();
+    private int nextLocationId;
 
     @Before
     public void setup() {
         stationManager = new StationManager();
+        selectedCharger = null;
+
+        locationNameToId.clear();
+        nextLocationId = 1;
     }
 
-    // UPDATED: Unique wording
     @Given("the charger info service is initialized")
-    public void the_system_is_initialized() {
+    public void the_charger_info_service_is_initialized() {
         Assertions.assertNotNull(stationManager);
     }
 
-    // UPDATED: Unique wording
-    @Given("an info-service location with ID {int} exists")
-    public void a_location_exists(Integer id) {
-        stationManager.createLocation(id, "Location " + id, "Address " + id);
+    @Given("an info-service location named {string} exists")
+    public void an_info_service_location_named_exists(String locationName) {
+        int locId = locationNameToId.computeIfAbsent(locationName, n -> nextLocationId++);
+        // createLocation may throw if duplicate in your implementation; but computeIfAbsent avoids re-creating
+        stationManager.createLocation(locId, locationName, "Address " + locationName);
     }
 
-    // UPDATED: Unique wording
-    @Given("an info-service charger with ID {int} and {double} kW exists at location {int}")
-    public void charger_exists_at_location(Integer chargerId, Double power, Integer locId) {
-        Charger charger = new Charger(chargerId, 900000, power);
+    @Given("an info-service charger with ID {int} and {double} kW exists at location {string}")
+    public void an_info_service_charger_with_id_and_power_exists_at_location(Integer chargerId, Double power, String locationName) {
+        int locId = requireLocationId(locationName);
+
+        Charger charger = new Charger(chargerId, 900000 + chargerId, power);
         stationManager.addChargerToLocation(locId, charger);
     }
 
-    // UPDATED: Unique wording
-    @Given("an info-service charger with ID {int} exists at location {int}")
-    public void charger_exists(Integer chargerId, Integer locId) {
-        Charger charger = new Charger(chargerId, 900000, 150.0);
+    @Given("an info-service charger with ID {int} exists at location {string}")
+    public void an_info_service_charger_with_id_exists_at_location(Integer chargerId, String locationName) {
+        int locId = requireLocationId(locationName);
+
+        Charger charger = new Charger(chargerId, 900000 + chargerId, 150.0);
         stationManager.addChargerToLocation(locId, charger);
     }
 
-    // UPDATED: Unique wording + removed symbols
-    @Given("info-service location {int} has pricing AC {double} EUR per kWh")
-    public void location_has_pricing(Integer locId, Double ac) {
-        stationManager.updateLocationPricing(locId, ac, 0.65, 0.20, 0.20);
+    @Given("info-service location {string} has pricing AC {double} EUR per kWh")
+    public void info_service_location_has_pricing_ac(String locationName, Double acPrice) {
+        int locId = requireLocationId(locationName);
+        stationManager.updateLocationPricing(locId, acPrice, 0.65, 0.20, 0.20);
     }
 
     @When("I request information for charger ID {int}")
-    public void i_request_charger_info(Integer chargerId) {
-        lastCreatedCharger = stationManager.findChargerById(chargerId);
+    public void i_request_information_for_charger_id(Integer chargerId) {
+        selectedCharger = stationManager.findChargerById(chargerId);
     }
 
     @When("I request charger information for ID {int}")
-    public void i_request_charger_information(Integer chargerId) {
-        lastCreatedCharger = stationManager.findChargerById(chargerId);
+    public void i_request_charger_information_for_id(Integer chargerId) {
+        selectedCharger = stationManager.findChargerById(chargerId);
     }
 
     @Then("I should see charger ID {int}")
-    public void i_should_see_charger_id(Integer id) {
-        Assertions.assertNotNull(lastCreatedCharger);
-        Assertions.assertEquals(id.intValue(), lastCreatedCharger.getChargerId());
+    public void i_should_see_charger_id(Integer expectedId) {
+        Assertions.assertNotNull(selectedCharger, "No charger selected/found");
+        Assertions.assertEquals(expectedId.intValue(), selectedCharger.getChargerId());
     }
 
     @Then("I should see power {double} kW")
-    public void i_should_see_power(Double power) {
-        Assertions.assertEquals(power, lastCreatedCharger.getMaxPowerKw(), 0.01);
+    public void i_should_see_power(Double expectedPower) {
+        Assertions.assertNotNull(selectedCharger, "No charger selected/found");
+        Assertions.assertEquals(expectedPower, selectedCharger.getMaxPowerKw(), 0.01);
     }
 
     @Then("I should see the charger status")
-    public void i_should_see_status() {
-        Assertions.assertNotNull(lastCreatedCharger.getStatus());
+    public void i_should_see_the_charger_status() {
+        Assertions.assertNotNull(selectedCharger, "No charger selected/found");
+        Assertions.assertNotNull(selectedCharger.getStatus(), "Charger status must not be null");
     }
 
-    // UPDATED: Removed symbols
     @Then("I should see AC price {double} EUR per kWh")
-    public void i_should_see_ac_price(Double price) {
-        Assertions.assertNotNull(lastCreatedCharger, "No charger selected/found");
+    public void i_should_see_ac_price(Double expectedPrice) {
+        Assertions.assertNotNull(selectedCharger, "No charger selected/found");
 
-        int locId = lastCreatedCharger.getLocationId();
+        int locId = selectedCharger.getLocationId();
         Location loc = stationManager.getLocationById(locId);
         Assertions.assertNotNull(loc, "Location not found for charger locationId=" + locId);
 
         PriceConfiguration pricing = loc.getPriceConfiguration();
         Assertions.assertNotNull(pricing, "No pricing set for locationId=" + locId);
 
-        Assertions.assertEquals(price, pricing.getAcPricePerKWh(), 0.01);
+        Assertions.assertEquals(expectedPrice, pricing.getAcPricePerKWh(), 0.01);
+    }
+
+    // -----------------------
+    // helpers
+    // -----------------------
+    private int requireLocationId(String locationName) {
+        Integer id = locationNameToId.get(locationName);
+        Assertions.assertNotNull(id, "Location not known in scenario: " + locationName);
+        return id;
     }
 }

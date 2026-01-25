@@ -24,24 +24,19 @@ public class CreateClientSteps {
         Assertions.assertNotNull(clientManager);
     }
 
-    @When("I register a client with ID {int}, name {string} and email {string}")
-    public void i_register_client(Integer id, String name, String email) {
-        lastCreatedClient = clientManager.registerClient(id, name, email);
+    @When("I register a client with name {string} and email {string}")
+    public void i_register_client(String name, String email) {
+        lastCreatedClient = clientManager.registerClient(name, email);
     }
 
-    @When("I register client ID {int} {string} with email {string}")
-    public void i_register_client_short(Integer id, String name, String email) {
-        clientManager.registerClient(id, name, email);
+    @When("I register client {string} with email {string}")
+    public void i_register_client_short(String name, String email) {
+        clientManager.registerClient(name, email);
     }
 
     @Then("the client should be saved in the system")
     public void client_should_be_saved() {
         Assertions.assertNotNull(lastCreatedClient);
-    }
-
-    @Then("the client should have ID {int}")
-    public void client_should_have_id(Integer id) {
-        Assertions.assertEquals(id.intValue(), lastCreatedClient.getClientId());
     }
 
     @Then("the client should have name {string}")
