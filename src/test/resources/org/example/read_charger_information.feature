@@ -13,7 +13,7 @@ Feature: Read Charger Information
     And I should see the charger status
 
   Scenario: View charger with pricing
-    Given the charger inf service is initialized
+    Given the charger info service is initialized
     And an info-service location named "City Center" exists
     And an info-service charger with ID 101 exists at location "City Center"
     And info-service location "City Center" has pricing AC 0.45 EUR per kWh

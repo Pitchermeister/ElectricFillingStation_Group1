@@ -50,15 +50,42 @@ public class ClientManager {
     }
 
     // DELETE
-    public void deleteClient(int id) {
+// DELETE
+// DELETE
+    public void deleteClient(int id, ChargingManager chargingManager) {
         Client client = getClientById(id);
-        if (client != null) {
-            clientDatabase.remove(client);
-            System.out.println("Client deleted: " + id);
-        } else {
+        if (client == null) {
             System.out.println("Client not found: " + id);
+            return;
         }
+
+        // 1) Darf nicht gelöscht werden, wenn Guthaben vorhanden ist
+        if (client.getAccount() != null && client.getAccount().getBalance() > 0) {
+            System.out.println("Client cannot be deleted (balance > 0): " + id);
+            return;
+        }
+
+        // 2) Darf nicht gelöscht werden, wenn gerade am Laden
+        // chargingManager muss im ClientManager als Feld existieren (und initialisiert/übergeben werden)
+        if (chargingManager == null) {
+            System.out.println("Client cannot be deleted (chargingManager not set): " + id);
+            return;
+        }
+
+        boolean isCharging = chargingManager.getSessionsByClientId(id).stream()
+                .anyMatch(session -> !session.isFinished());
+
+        if (isCharging) {
+            System.out.println("Client cannot be deleted (currently charging): " + id);
+            return;
+        }
+
+        clientDatabase.remove(client);
+        System.out.println("Client deleted: " + id);
     }
+
+
+
 
     @Override
     public String toString() {
