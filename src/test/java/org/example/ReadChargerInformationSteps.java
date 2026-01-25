@@ -6,6 +6,7 @@ import io.cucumber.java.en.Then;
 import io.cucumber.java.en.When;
 import org.example.Management.StationManager;
 import org.example.domain.Charger;
+import org.example.domain.Location;
 import org.example.domain.PriceConfiguration;
 import org.junit.jupiter.api.Assertions;
 
@@ -80,8 +81,15 @@ public class ReadChargerInformationSteps {
     // UPDATED: Removed symbols
     @Then("I should see AC price {double} EUR per kWh")
     public void i_should_see_ac_price(Double price) {
-        PriceConfiguration pricing = lastCreatedCharger.getPriceConfiguration();
-        Assertions.assertNotNull(pricing);
+        Assertions.assertNotNull(lastCreatedCharger, "No charger selected/found");
+
+        int locId = lastCreatedCharger.getLocationId();
+        Location loc = stationManager.getLocationById(locId);
+        Assertions.assertNotNull(loc, "Location not found for charger locationId=" + locId);
+
+        PriceConfiguration pricing = loc.getPriceConfiguration();
+        Assertions.assertNotNull(pricing, "No pricing set for locationId=" + locId);
+
         Assertions.assertEquals(price, pricing.getAcPricePerKWh(), 0.01);
     }
 }

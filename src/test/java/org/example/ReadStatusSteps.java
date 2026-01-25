@@ -36,31 +36,30 @@ public class ReadStatusSteps {
 
     @Given("a status monitored location with ID {int} {string} exists with {int} chargers")
     public void location_with_name_and_chargers(Integer id, String name, Integer count) {
-        stationManager.createLocation(id, name, "Address");
+        Location loc = stationManager.createLocation(id, name, "Address");
 
-        // FIX: Add default pricing so chargers are valid for sessions immediately
-        PriceConfiguration defaultPrice = new PriceConfiguration(id, 0.45, 0.65, 0.20, 0.20);
+        // ✅ pricing on location
+        loc.setPriceConfiguration(new PriceConfiguration(id, 0.45, 0.65, 0.20, 0.20));
 
         for (int i = 0; i < count; i++) {
             Charger charger = new Charger(id * 100 + i, 900000, 150.0);
-            charger.setPriceConfiguration(defaultPrice); // Set price!
             stationManager.addChargerToLocation(id, charger);
         }
     }
 
     @Given("a status monitored location with ID {int} exists with {int} chargers")
     public void location_exists_with_chargers(Integer id, Integer count) {
-        stationManager.createLocation(id, "Location " + id, "Address");
+        Location loc = stationManager.createLocation(id, "Location " + id, "Address");
 
-        // FIX: Add default pricing here too
-        PriceConfiguration defaultPrice = new PriceConfiguration(id, 0.45, 0.65, 0.20, 0.20);
+        // ✅ pricing on location
+        loc.setPriceConfiguration(new PriceConfiguration(id, 0.45, 0.65, 0.20, 0.20));
 
         for (int i = 0; i < count; i++) {
             Charger charger = new Charger(id * 100 + i, 900000, 150.0);
-            charger.setPriceConfiguration(defaultPrice); // Set price!
             stationManager.addChargerToLocation(id, charger);
         }
     }
+
 
     @Given("status location {int} has pricing AC {double} EUR per kWh")
     public void location_has_pricing(Integer locId, Double ac) {
@@ -76,12 +75,17 @@ public class ReadStatusSteps {
     @Given("the client is charging on charger {int}")
     public void client_is_charging_on_charger(Integer chargerId) {
         Client client = clientManager.getAllClients().get(0);
-        Location loc = stationManager.getAllLocations().get(0);
 
-        // Double check charger existence and price to prevent crashes
         Charger charger = stationManager.findChargerById(chargerId);
-        if (charger.getPriceConfiguration() == null) {
-            charger.setPriceConfiguration(new PriceConfiguration(999, 0.45, 0.65, 0.20, 0.20));
+        Assertions.assertNotNull(charger, "Charger not found: " + chargerId);
+
+        // Find the location of that charger (über charger.getLocationId())
+        Location loc = stationManager.getLocationById(charger.getLocationId());
+        Assertions.assertNotNull(loc, "Location not found for charger: " + chargerId);
+
+        // ✅ ensure location pricing exists
+        if (loc.getPriceConfiguration() == null) {
+            loc.setPriceConfiguration(new PriceConfiguration(loc.getLocationId(), 0.45, 0.65, 0.20, 0.20));
         }
 
         chargingService.startSession(
@@ -92,6 +96,7 @@ public class ReadStatusSteps {
                 LocalDateTime.now()
         );
     }
+
 
     @When("I request the network status")
     public void i_request_network_status() {

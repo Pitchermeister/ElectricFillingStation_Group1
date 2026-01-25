@@ -64,8 +64,13 @@ public class CreatePriceSteps {
     @Then("all chargers at location {int} should have these prices")
     public void all_chargers_should_have_prices(Integer locId) {
         Location loc = stationManager.getLocationById(locId);
-        for (Charger c : loc.getChargers()) {
-            Assertions.assertNotNull(c.getPriceConfiguration());
-        }
+        Assertions.assertNotNull(loc, "Location not found: " + locId);
+
+        // ✅ pricing is stored once per location now
+        PriceConfiguration pricing = loc.getPriceConfiguration();
+        Assertions.assertNotNull(pricing, "Pricing not set for location: " + locId);
+
+        // Optional: ensure chargers exist (since scenario says they do)
+        Assertions.assertFalse(loc.getChargers().isEmpty(), "No chargers at location: " + locId);
     }
 }

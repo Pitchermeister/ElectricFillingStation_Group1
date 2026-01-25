@@ -42,12 +42,14 @@ public class ReadInvoiceSteps {
 
     @Given("an invoicing location with ID {int} {string} exists with {int} charger")
     public void location_with_name_exists(Integer id, String name, Integer count) {
-        stationManager.createLocation(id, name, "Address");
-        PriceConfiguration defaultPrice = new PriceConfiguration(id, 0.45, 0.55, 0.20, 0.20);
+        Location loc = stationManager.createLocation(id, name, "Address");
+
+        // ✅ pricing now belongs to location
+        loc.setPriceConfiguration(new PriceConfiguration(id, 0.45, 0.55, 0.20, 0.20));
 
         for (int i = 0; i < count; i++) {
             Charger charger = new Charger(id * 100 + i, 900000, 150.0);
-            charger.setPriceConfiguration(defaultPrice);
+            // ❌ remove: charger.setPriceConfiguration(...)
             stationManager.addChargerToLocation(id, charger);
         }
     }
@@ -58,9 +60,10 @@ public class ReadInvoiceSteps {
         Location loc = stationManager.getAllLocations().get(0);
         Charger charger = loc.getChargers().get(0);
 
-        if (charger.getPriceConfiguration() == null) {
-            charger.setPriceConfiguration(new PriceConfiguration(999, 0.45, 0.55, 0.20, 0.20));
+        if (loc.getPriceConfiguration() == null) {
+            loc.setPriceConfiguration(new PriceConfiguration(loc.getLocationId(), 0.45, 0.55, 0.20, 0.20));
         }
+
 
         chargingService.startSession(
                 client.getClientId(),
@@ -78,17 +81,19 @@ public class ReadInvoiceSteps {
 
         if (stationManager.getAllLocations().isEmpty()) {
             stationManager.createLocation(1, "Default Loc", "Addr");
+            Location loc = stationManager.createLocation(1, "Default Loc", "Addr");
+            loc.setPriceConfiguration(new PriceConfiguration(1, 0.45, 0.55, 0.20, 0.20));
             Charger c = new Charger(101, 999, 50.0);
-            c.setPriceConfiguration(new PriceConfiguration(999, 0.45, 0.55, 0.20, 0.20));
             stationManager.addChargerToLocation(1, c);
         }
 
         Location loc = stationManager.getAllLocations().get(0);
         Charger charger = loc.getChargers().get(0);
 
-        if (charger.getPriceConfiguration() == null) {
-            charger.setPriceConfiguration(new PriceConfiguration(999, 0.45, 0.55, 0.20, 0.20));
+        if (loc.getPriceConfiguration() == null) {
+            loc.setPriceConfiguration(new PriceConfiguration(loc.getLocationId(), 0.45, 0.55, 0.20, 0.20));
         }
+
 
         for (int i = 0; i < count; i++) {
             chargingService.startSession(
