@@ -10,6 +10,7 @@ import org.example.domain.PriceConfiguration;
 import org.example.domain.Charger;
 import org.junit.jupiter.api.Assertions;
 
+import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -21,11 +22,16 @@ public class CreatePriceSteps {
     private Map<String, Location> locationsByName;
     private int nextLocationId;
 
+    private Map<String, LocalDateTime> pricingSetFrom;
+    private Map<String, LocalDateTime> pricingSetTo;
+
     @Before
     public void setup() {
         stationManager = new StationManager();
         locationsByName = new HashMap<>();
         nextLocationId = 1;
+        pricingSetFrom = new HashMap<>();
+        pricingSetTo = new HashMap<>();
     }
 
     @Given("the pricing service is initialized")
@@ -48,13 +54,27 @@ public class CreatePriceSteps {
     @When("I set pricing for location {string}: AC {double} EUR per kWh, DC {double} EUR per kWh, {double} EUR per min")
     public void i_set_pricing(String name, Double ac, Double dc, Double min) {
         Location loc = requireLocation(name);
+
+        // ✅ capture timing window
+        LocalDateTime before = LocalDateTime.now();
         stationManager.updateLocationPricing(loc.getLocationId(), ac, dc, min, min);
+        LocalDateTime after = LocalDateTime.now();
+
+        pricingSetFrom.put(name, before);
+        pricingSetTo.put(name, after);
     }
 
     @When("I set location {string} pricing: AC {double} EUR per kWh")
     public void i_set_location_pricing(String name, Double ac) {
         Location loc = requireLocation(name);
+
+        // ✅ capture timing window
+        LocalDateTime before = LocalDateTime.now();
         stationManager.updateLocationPricing(loc.getLocationId(), ac, 0.65, 0.20, 0.20);
+        LocalDateTime after = LocalDateTime.now();
+
+        pricingSetFrom.put(name, before);
+        pricingSetTo.put(name, after);
     }
 
     @Then("location {string} should have AC price {double} EUR per kWh")
@@ -83,6 +103,27 @@ public class CreatePriceSteps {
         // optional: ensure chargers exist if scenario says so
         Assertions.assertFalse(loc.getChargers().isEmpty(), "No chargers at location: " + name);
     }
+
+    @Then("location {string} pricing should have a timestamp")
+    public void location_pricing_should_have_timestamp(String name) {
+        Location loc = requireLocation(name);
+        PriceConfiguration pricing = loc.getPriceConfiguration();
+        Assertions.assertNotNull(pricing, "Pricing not set for location: " + name);
+
+        LocalDateTime ts = pricing.getLastUpdated();
+        Assertions.assertNotNull(ts, "Expected lastUpdated timestamp to be set for location: " + name);
+
+        LocalDateTime from = pricingSetFrom.get(name);
+        LocalDateTime to = pricingSetTo.get(name);
+        Assertions.assertNotNull(from, "No 'before' timestamp recorded for location: " + name);
+        Assertions.assertNotNull(to, "No 'after' timestamp recorded for location: " + name);
+
+        Assertions.assertFalse(ts.isBefore(from),
+                "lastUpdated is before pricing update window.\nlastUpdated=" + ts + " from=" + from + " to=" + to);
+        Assertions.assertFalse(ts.isAfter(to),
+                "lastUpdated is after pricing update window.\nlastUpdated=" + ts + " from=" + from + " to=" + to);
+    }
+
 
     private Location requireLocation(String name) {
         Location loc = locationsByName.get(name);

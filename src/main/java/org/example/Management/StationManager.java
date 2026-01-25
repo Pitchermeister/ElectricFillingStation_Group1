@@ -20,7 +20,7 @@ public class StationManager {
     public Location createLocation(String name, String address) {
         Location location = new Location(this.id, name, address);
         locations.add(location);
-        this.id =+ 10;
+        this.id += 1;
         return location;
     }
     public Location createLocation(int id, String name, String address) {
