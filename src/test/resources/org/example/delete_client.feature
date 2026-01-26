@@ -23,6 +23,7 @@ Feature: Delete Client
     And the client has a finished charging session
     When I try to delete the client
     Then the client should be deleted from the system
+
   Scenario: Attempt to delete non-existent client (error case)
     Given the delete client management system is initialized
     When I attempt to delete a client with ID 999

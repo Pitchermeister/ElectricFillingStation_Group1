@@ -3,21 +3,19 @@ Feature: Create Location
   I want to create new locations
   So that I can assign chargers to them
 
-  # Scenario 1
   Scenario: Create a new location successfully
-    # UPDATED LINE BELOW:
     Given the location service is initialized
     When I create a location with name "City Center" and address "Main St 1"
     Then the location should be saved
     And the location should have name "City Center"
     And the location should have address "Main St 1"
 
-  # Scenario 2
   Scenario: Create multiple locations
-    # UPDATED LINE BELOW:
     Given the location service is initialized
-    When I create location "West Side" at "West Ave"
-    And I create location "East Side" at "East Ave"
+    When I create the following locations:
+      | Name      | Address  |
+      | West Side | West Ave |
+      | East Side | East Ave |
     Then the system should have 2 locations
 
   Scenario: Create location with minimal address length (edge case)
@@ -41,9 +39,18 @@ Feature: Create Location
 
   Scenario: Create multiple locations sequentially (edge case)
     Given the location service is initialized
-    When I create location "Loc1" at "Addr1"
-    And I create location "Loc2" at "Addr2"
-    And I create location "Loc3" at "Addr3"
-    And I create location "Loc4" at "Addr4"
-    And I create location "Loc5" at "Addr5"
+    When I create the following locations:
+      | Name | Address |
+      | Loc1 | Addr1   |
+      | Loc2 | Addr2   |
+      | Loc3 | Addr3   |
+      | Loc4 | Addr4   |
+      | Loc5 | Addr5   |
     Then the system should have 5 locations
+
+  # NEW: Error Case
+  Scenario: Attempt to create location with empty name (error case)
+    Given the location service is initialized
+    When I attempt to create a location with name "" and address "Main St"
+    Then the location should not be created
+    And an error should be returned for invalid location data

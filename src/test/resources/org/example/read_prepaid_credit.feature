@@ -29,9 +29,9 @@ Feature: Read Prepaid Credit
     And a read-credit customer "Peter" exists
     When "Peter" tops up 100.00 EUR
     And "Alice" checks their balance
-    Then the balance should be 0.00 EUR
+    Then "Alice" balance should be 0.00 EUR
     When "Peter" checks their balance
-    Then the balance should be 100.00 EUR
+    Then "Peter" balance should be 100.00 EUR
 
   Scenario: Check balance with multiple top-ups (edge case)
     Given the read-credit service is initialized
@@ -39,6 +39,7 @@ Feature: Read Prepaid Credit
     When "Alice" tops up 25.50 EUR
     And "Alice" tops up 50.25 EUR
     And "Alice" tops up 24.25 EUR
+    And "Alice" checks their balance
     Then the balance should be 100.00 EUR
 
   Scenario: Check balance after spending entire balance (edge case)
@@ -66,3 +67,9 @@ Feature: Read Prepaid Credit
     Then "Alice" balance should be 100.00 EUR
     And "Bob" balance should be 50.00 EUR
     And "Carol" balance should be 75.00 EUR
+
+  Scenario: Check balance for non-existent customer (error case)
+    Given the read-credit service is initialized
+    When I attempt to check the balance for "Ghost"
+    # UPDATED: Changed wording to avoid conflict
+    Then an error should be returned for unknown prepaid customer

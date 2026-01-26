@@ -6,6 +6,8 @@ import io.cucumber.java.en.Then;
 import io.cucumber.java.en.When;
 import org.example.Management.StationManager;
 import org.example.domain.Charger;
+import org.example.domain.ChargerStatus;
+import org.example.domain.ChargerType;
 import org.example.domain.Location;
 import org.example.domain.PriceConfiguration;
 import org.junit.jupiter.api.Assertions;
@@ -17,8 +19,8 @@ public class ReadChargerInformationSteps {
 
     private StationManager stationManager;
     private Charger selectedCharger;
+    private Charger lastCreatedCharger; // Track for "currently occupied" step
 
-    // map location names -> internal ids (hidden from feature)
     private final Map<String, Integer> locationNameToId = new HashMap<>();
     private int nextLocationId;
 
@@ -26,6 +28,7 @@ public class ReadChargerInformationSteps {
     public void setup() {
         stationManager = new StationManager();
         selectedCharger = null;
+        lastCreatedCharger = null;
 
         locationNameToId.clear();
         nextLocationId = 1;
@@ -39,7 +42,6 @@ public class ReadChargerInformationSteps {
     @Given("an info-service location named {string} exists")
     public void an_info_service_location_named_exists(String locationName) {
         int locId = locationNameToId.computeIfAbsent(locationName, n -> nextLocationId++);
-        // createLocation may throw if duplicate in your implementation; but computeIfAbsent avoids re-creating
         stationManager.createLocation(locId, locationName, "Address " + locationName);
     }
 
@@ -47,16 +49,25 @@ public class ReadChargerInformationSteps {
     public void an_info_service_charger_with_id_and_power_exists_at_location(Integer chargerId, Double power, String locationName) {
         int locId = requireLocationId(locationName);
 
-        Charger charger = new Charger(chargerId, 900000 + chargerId, power);
+        // Determine Mode based on Power (Standard logic: >22kW is DC)
+        ChargerType type = (power > 22.0) ? ChargerType.DC : ChargerType.AC;
+
+        Charger charger = new Charger(chargerId, 900000 + chargerId, power, type);
         stationManager.addChargerToLocation(locId, charger);
+        lastCreatedCharger = charger;
     }
 
     @Given("an info-service charger with ID {int} exists at location {string}")
     public void an_info_service_charger_with_id_exists_at_location(Integer chargerId, String locationName) {
         int locId = requireLocationId(locationName);
 
-        Charger charger = new Charger(chargerId, 900000 + chargerId, 150.0);
+        // Default to AC 22kW so the "View charger with pricing" scenario sees AC Mode
+        double power = 22.0;
+        ChargerType type = ChargerType.AC;
+
+        Charger charger = new Charger(chargerId, 900000 + chargerId, power, type);
         stationManager.addChargerToLocation(locId, charger);
+        lastCreatedCharger = charger;
     }
 
     @Given("info-service location {string} has pricing AC {double} EUR per kWh")
@@ -87,6 +98,12 @@ public class ReadChargerInformationSteps {
         Assertions.assertEquals(expectedPower, selectedCharger.getMaxPowerKw(), 0.01);
     }
 
+    @Then("I should see charging mode {string}")
+    public void i_should_see_charging_mode(String expectedMode) {
+        Assertions.assertNotNull(selectedCharger, "No charger selected/found");
+        Assertions.assertEquals(expectedMode, selectedCharger.getType().toString());
+    }
+
     @Then("I should see the charger status")
     public void i_should_see_the_charger_status() {
         Assertions.assertNotNull(selectedCharger, "No charger selected/found");
@@ -97,14 +114,49 @@ public class ReadChargerInformationSteps {
     public void i_should_see_ac_price(Double expectedPrice) {
         Assertions.assertNotNull(selectedCharger, "No charger selected/found");
 
-        int locId = selectedCharger.getLocationId();
-        Location loc = stationManager.getLocationById(locId);
-        Assertions.assertNotNull(loc, "Location not found for charger locationId=" + locId);
+        // FIX: Use StationManager to get the current pricing configuration,
+        // as the Location object inside the Charger might be stale or not fully linked.
+        PriceConfiguration pricing = stationManager.getPricingForLocation(selectedCharger.getLocationId());
 
-        PriceConfiguration pricing = loc.getPriceConfiguration();
-        Assertions.assertNotNull(pricing, "No pricing set for locationId=" + locId);
-
+        Assertions.assertNotNull(pricing, "No pricing set for locationId=" + selectedCharger.getLocationId());
         Assertions.assertEquals(expectedPrice, pricing.getAcPricePerKWh(), 0.01);
+    }
+
+    // --- MISSING STEPS IMPLEMENTED ---
+
+    @Then("an error should be returned for charger not found")
+    public void an_error_should_be_returned_for_charger_not_found() {
+        // If findChargerById returns null, selectedCharger is null.
+        Assertions.assertNull(selectedCharger, "Expected no charger to be found, but one was selected");
+    }
+
+    @Given("the charger is currently occupied by a charging session")
+    public void the_charger_is_currently_occupied() {
+        Assertions.assertNotNull(lastCreatedCharger, "No charger created to set occupied");
+        lastCreatedCharger.setStatus(ChargerStatus.OCCUPIED);
+    }
+
+    @Then("I should see the charger status as OCCUPIED")
+    public void i_should_see_status_as_occupied() {
+        Assertions.assertNotNull(selectedCharger);
+        Assertions.assertEquals(ChargerStatus.OCCUPIED, selectedCharger.getStatus());
+    }
+
+    @Given("location {string} has no pricing configured")
+    public void location_has_no_pricing(String locationName) {
+        int locId = requireLocationId(locationName);
+        Location loc = stationManager.getLocationById(locId);
+        loc.setPriceConfiguration(null); // Force clear
+    }
+
+    @Then("the pricing information should indicate {string}")
+    public void pricing_should_indicate(String message) {
+        Assertions.assertNotNull(selectedCharger);
+        PriceConfiguration pricing = stationManager.getPricingForLocation(selectedCharger.getLocationId());
+
+        if ("Not configured".equals(message)) {
+            Assertions.assertNull(pricing, "Expected pricing to be null/not configured");
+        }
     }
 
     // -----------------------

@@ -4,7 +4,6 @@ Feature: Create Client
   So that they can use the charging network
 
   Scenario: Register a new client
-    # UPDATED LINE:
     Given the client management system is initialized
     When I register a client with name "John Doe" and email "john@example.com"
     Then the client should be saved in the system
@@ -13,10 +12,11 @@ Feature: Create Client
     And the client should have zero balance
 
   Scenario: Register multiple clients
-    # UPDATED LINE:
     Given the client management system is initialized
-    When I register client "Alice" with email "alice@test.com"
-    And I register client "Bob" with email "bob@test.com"
+    When I register the following clients:
+      | name  | email          | balance |
+      | Alice | alice@test.com | 0.0     |
+      | Bob   | bob@test.com   | 0.0     |
     Then the system should have 2 clients
 
   Scenario: Register client with minimal name length (edge case)
@@ -31,9 +31,16 @@ Feature: Create Client
     Then the client should be saved in the system
     And the client should have email "this.is.a.very.long.email.address.that.contains.many.characters@subdomain.example.co.uk"
 
-  Scenario: Register client with duplicate email (error case)
+  # RENAMED: This is allowed in your system, so it's an edge case, not an error.
+  Scenario: Register client with duplicate email (edge case)
     Given the client management system is initialized
     When I register a client with name "John Doe" and email "john@example.com"
     And I register a client with name "Jane Smith" and email "john@example.com"
     Then the system should have 2 clients
-    And both clients should be registered (even with duplicate email)
+
+  # NEW: Actual Error Case
+  Scenario: Attempt to register client with empty details (error case)
+    Given the client management system is initialized
+    When I attempt to register a client with name "" and email "empty@test.com"
+    Then the client should not be registered
+    And an error should be returned for invalid input

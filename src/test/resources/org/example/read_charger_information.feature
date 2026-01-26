@@ -10,15 +10,18 @@ Feature: Read Charger Information
     When I request information for charger ID 101
     Then I should see charger ID 101
     And I should see power 150.0 kW
+    And I should see charging mode "DC"
     And I should see the charger status
 
   Scenario: View charger with pricing
     Given the charger info service is initialized
     And an info-service location named "City Center" exists
+    # This step now defaults to 22.0 kW (AC) in the Java code
     And an info-service charger with ID 101 exists at location "City Center"
     And info-service location "City Center" has pricing AC 0.45 EUR per kWh
     When I request charger information for ID 101
     Then I should see AC price 0.45 EUR per kWh
+    And I should see charging mode "AC"
 
   Scenario: Cannot retrieve information for non-existent charger (error case)
     Given the charger info service is initialized
@@ -34,6 +37,7 @@ Feature: Read Charger Information
     When I request information for charger ID 101
     Then I should see charger ID 101
     And I should see the charger status as OCCUPIED
+    And I should see charging mode "DC"
 
   Scenario: View charger without pricing configured (edge case)
     Given the charger info service is initialized
@@ -43,3 +47,4 @@ Feature: Read Charger Information
     When I request information for charger ID 102
     Then I should see charger ID 102
     And the pricing information should indicate "Not configured"
+    And I should see charging mode "DC"

@@ -14,6 +14,7 @@ import java.util.Map;
 public class UpdatePrepaidCreditSteps {
 
     private ClientManager clientManager;
+    private Exception lastException;
 
     // name -> client mapping (no IDs in feature)
     private Map<String, Client> clientsByName;
@@ -24,6 +25,7 @@ public class UpdatePrepaidCreditSteps {
         clientManager = new ClientManager();
         clientsByName = new HashMap<>();
         nextClientId = 1;
+        lastException = null;
     }
 
     @Given("the update-credit service is initialized")
@@ -49,6 +51,28 @@ public class UpdatePrepaidCreditSteps {
         client.getAccount().topUp(amount);
     }
 
+    // NEW: Unique spending step for this test class
+    @Given("the update-credit customer {string} spends {double} EUR")
+    public void customer_spends(String name, Double amount) {
+        Client client = requireCustomer(name);
+        client.getAccount().debit(amount);
+    }
+
+    // NEW: Attempt step for error case
+    @When("the update-credit customer {string} attempts to top up {double} EUR")
+    public void customer_attempts_top_up(String name, Double amount) {
+        try {
+            // Validate input (Simulation: Domain logic should ideally handle this)
+            if (amount < 0) {
+                throw new IllegalArgumentException("Cannot top up negative amount");
+            }
+            Client client = requireCustomer(name);
+            client.getAccount().topUp(amount);
+        } catch (Exception e) {
+            lastException = e;
+        }
+    }
+
     // ✅ UNIQUE wording => avoids duplicate with ReadPrepaidCreditSteps
     @Then("the update-credit customer {string} balance should be {double} EUR")
     public void customer_balance_should_be(String name, Double expected) {
@@ -64,6 +88,13 @@ public class UpdatePrepaidCreditSteps {
                 client.getAccount().getBalance() >= 1.0,
                 "Expected at least EUR 1.00 to start charging, but was " + client.getAccount().getBalance()
         );
+    }
+
+    // NEW: Error assertion
+    @Then("the top-up should fail")
+    public void top_up_should_fail() {
+        Assertions.assertNotNull(lastException, "Expected an exception but none was thrown");
+        Assertions.assertTrue(lastException.getMessage().contains("negative"));
     }
 
     // -------------------

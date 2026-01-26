@@ -65,26 +65,41 @@ public class CreateChargingSessionSteps {
         Location loc = ensureLocationExists(locationName);
         for (int i = 0; i < count; i++) {
             int chargerId = 101 + i;
-            Charger charger = new Charger(chargerId, 900000 + chargerId, 150.0);
+
+            // UPDATED: Create different chargers based on ID parity
+            // Odd IDs (101, 103) -> AC, 22kW
+            // Even IDs (102, 104) -> DC, 150kW
+            boolean isDc = (chargerId % 2 == 0);
+            ChargerType type = isDc ? ChargerType.DC : ChargerType.AC;
+            double power = isDc ? 150.0 : 22.0;
+
+            Charger charger = new Charger(chargerId, 900000 + chargerId, power, type);
+
             forceIntFieldIfPresent(charger, "chargerId", chargerId);
             forceIntFieldIfPresent(charger, "id", chargerId);
             stationManager.addChargerToLocation(loc.getLocationId(), charger);
         }
+        // Set Default Pricing (AC & DC)
         stationManager.updateLocationPricing(loc.getLocationId(), 0.45, 0.65, 0.20, 0.20);
     }
 
-    @When("the charging customer {string} starts an AC charging session on charger {int} at {string}")
-    public void customer_starts_ac_session(String customerName, Integer chargerId, String locationName) {
+    // UPDATED: Now accepts "AC" or "DC" dynamically
+    // FIX: Changed to Regex syntax to support "a" or "an"
+    @When("^the charging customer \"([^\"]*)\" starts (?:a|an) \"([^\"]*)\" charging session on charger (\\d+) at \"([^\"]*)\"$")
+    public void customer_starts_session(String customerName, String typeStr, Integer chargerId, String locationName) {
         lastException = null;
         Client client = requireCustomer(customerName);
         Location loc = requireLocation(locationName);
+
+        // Convert string "AC"/"DC" to Enum
+        ChargerType mode = ChargerType.valueOf(typeStr);
 
         try {
             chargingService.startSession(
                     client.getClientId(),
                     loc.getLocationId(),
                     chargerId,
-                    ChargerType.AC,
+                    mode,
                     LocalDateTime.now()
             );
         } catch (Exception e) {
@@ -94,13 +109,14 @@ public class CreateChargingSessionSteps {
 
     @Given("the charging customer {string} has an active session on charger {int} at {string}")
     public void customer_has_active_session(String customerName, Integer chargerId, String locationName) {
-        customer_starts_ac_session(customerName, chargerId, locationName);
+        // Defaults to AC for backward compatibility or simplistic tests
+        customer_starts_session(customerName, "AC", chargerId, locationName);
     }
 
     @When("the charging customer {string} attempts to start a charging session on charger {int} at {string}")
     public void customer_attempts_to_start_session(String customerName, Integer chargerId, String locationName) {
         try {
-            customer_starts_ac_session(customerName, chargerId, locationName);
+            customer_starts_session(customerName, "AC", chargerId, locationName);
         } catch (Exception e) {
             lastException = e;
         }
@@ -186,31 +202,24 @@ public class CreateChargingSessionSteps {
         Assertions.assertFalse(entries.isEmpty(), "No invoice entries found for client " + customerName);
         InvoiceEntry lastEntry = entries.get(entries.size() - 1);
 
-        // Map column headers to values
         List<Map<String, String>> rows = dataTable.asMaps(String.class, String.class);
         Map<String, String> data = rows.get(0);
 
-        // Location
         if (data.containsKey("Location")) Assertions.assertTrue(lastEntry.getLocationName().contains(data.get("Location")));
-
-        // Mode (AC_or_DC)
         if (data.containsKey("AC_or_DC")) Assertions.assertEquals(data.get("AC_or_DC"), lastEntry.getMode().toString());
 
-        // Energy (12.5 kWh -> 12.5)
         String energyRaw = data.get("Energy");
         if (energyRaw != null) {
             double expectedKWh = Double.parseDouble(energyRaw.replaceAll("[^0-9.]", ""));
             Assertions.assertEquals(expectedKWh, lastEntry.getChargedKWh(), 0.1);
         }
 
-        // Cost (9.63 EUR -> 9.63)
         String costRaw = data.get("Cost");
         if (costRaw != null) {
             double expectedCost = Double.parseDouble(costRaw.replaceAll("[^0-9.]", ""));
             Assertions.assertEquals(expectedCost, lastEntry.getPrice(), 0.01);
         }
 
-        // Timestamps (Start Time / End Time)
         if (data.containsKey("Start Time") && data.get("Start Time").equals("RECENT")) {
             Assertions.assertNotNull(lastEntry.getStartTime());
         }
@@ -228,27 +237,17 @@ public class CreateChargingSessionSteps {
             Map<String, String> expected = rows.get(i);
             InvoiceEntry actual = allEntries.get(i);
 
-            // Client Name -> ID
             Client client = clientsByName.get(expected.get("client"));
             Assertions.assertEquals(client.getClientId(), actual.getClientId());
 
-            // Location
             Assertions.assertTrue(actual.getLocationName().contains(expected.get("location")));
-
-            // Charger
             Assertions.assertEquals(Integer.parseInt(expected.get("charger")), actual.getChargerId());
-
-            // Mode
             Assertions.assertEquals(expected.get("mode"), actual.getMode().toString());
 
-            // Time (20 min -> 20)
             String timeStr = expected.get("time").replaceAll("[^0-9]", "");
             Assertions.assertEquals(Long.parseLong(timeStr), actual.getDurationMinutes());
 
-            // kWh
             Assertions.assertEquals(Double.parseDouble(expected.get("kWh")), actual.getChargedKWh(), 0.1);
-
-            // Cost
             Assertions.assertEquals(Double.parseDouble(expected.get("cost")), actual.getPrice(), 0.01);
         }
     }

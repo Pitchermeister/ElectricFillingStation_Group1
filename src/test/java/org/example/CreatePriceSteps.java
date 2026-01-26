@@ -6,6 +6,7 @@ import io.cucumber.java.en.Then;
 import io.cucumber.java.en.When;
 import org.example.Management.StationManager;
 import org.example.domain.Charger;
+import org.example.domain.ChargerType; // IMPORT ADDED
 import org.example.domain.Location;
 import org.example.domain.PriceConfiguration;
 import org.junit.jupiter.api.Assertions;
@@ -37,11 +38,14 @@ public class CreatePriceSteps {
 
         // Create chargers for this location
         for (int i = 0; i < chargerCount; i++) {
-            Charger c = new Charger(id * 100 + i, 50000, 150.0); // Dummy capacity/power
+            // FIX: Updated to use the new Constructor with ChargerType
+            // Using DC + 150kW as a default "high power" charger for these tests
+            Charger c = new Charger(id * 100 + i, 50000, 150.0, ChargerType.DC);
             stationManager.addChargerToLocation(id, c);
         }
     }
 
+    // FIX: This step was missing, causing the last scenario to fail
     @Given("there is no location with the name {string}")
     public void no_location_with_name(String name) {
         Location loc = findLocationByName(name);
@@ -52,7 +56,6 @@ public class CreatePriceSteps {
     public void set_full_pricing(String name, Double acKw, Double dcKw, Double minPrice) {
         Location loc = findLocationByName(name);
         if (loc != null) {
-            // Using same price for AC/DC minute for simplicity based on input
             stationManager.updateLocationPricing(loc.getLocationId(), acKw, dcKw, minPrice, minPrice);
         } else {
             // Simulate system error for test if location missing
@@ -65,7 +68,6 @@ public class CreatePriceSteps {
         Location loc = findLocationByName(name);
         if (loc != null) {
             // We preserve existing values or set defaults if strictly updating AC
-            // For this test, we assume defaults for others if not specified
             stationManager.updateLocationPricing(loc.getLocationId(), acKw, 0.0, 0.0, 0.0);
         }
     }
@@ -109,10 +111,7 @@ public class CreatePriceSteps {
 
         for (Charger c : loc.getChargers()) {
             Assertions.assertNotNull(c.getPriceConfiguration(), "Charger " + c.getChargerId() + " has no price");
-            // Check if price config object is associated
             Assertions.assertEquals(loc.getLocationId(), c.getPriceConfiguration().getPriceConfigId());
-            // Note: In StationManager.updateLocationPricing, we use identityHashCode as ID,
-            // but effectively we just check that a config exists.
         }
     }
 
@@ -121,8 +120,6 @@ public class CreatePriceSteps {
         Location loc = findLocationByName(name);
         Assertions.assertNotNull(loc);
         PriceConfiguration price = stationManager.getPricingForLocation(loc.getLocationId());
-
-        // This ensures history tracking is possible
         Assertions.assertNotNull(price.getLastUpdated(), "Timestamp should not be null");
     }
 
@@ -133,7 +130,7 @@ public class CreatePriceSteps {
                 || lastException.getMessage().contains("NonExistent"));
     }
 
-    // HELPER to find location by name since StationManager uses IDs
+    // HELPER
     private Location findLocationByName(String name) {
         List<Location> all = stationManager.getAllLocations();
         for (Location loc : all) {

@@ -22,7 +22,6 @@ Feature: Update Prepaid Credit
     When the update-credit customer "Alice" tops up 100.00 EUR
     Then the update-credit customer "Alice" should be able to charge
 
- 
   Scenario: Top up with minimum positive amount (edge case)
     Given the update-credit service is initialized
     And an update-credit customer "Alice" exists
@@ -40,7 +39,8 @@ Feature: Update Prepaid Credit
   Scenario: Top up after exhausting balance (edge case)
     Given the update-credit service is initialized
     And an update-credit customer "Alice" exists with balance 100.00 EUR
-    And "Alice" spends 100.00 EUR on charging
+    # UPDATED: Unique wording to avoid conflict with ReadPrepaidCreditSteps
+    And the update-credit customer "Alice" spends 100.00 EUR
     When the update-credit customer "Alice" tops up 75.50 EUR
     Then the update-credit customer "Alice" balance should be 75.50 EUR
 
@@ -49,3 +49,11 @@ Feature: Update Prepaid Credit
     And an update-credit customer "Alice" exists
     When the update-credit customer "Alice" tops up 123.45 EUR
     Then the update-credit customer "Alice" balance should be 123.45 EUR
+
+  # NEW: Error Case
+  Scenario: Attempt to top up negative amount (error case)
+    Given the update-credit service is initialized
+    And an update-credit customer "Bob" exists
+    When the update-credit customer "Bob" attempts to top up -50.00 EUR
+    Then the top-up should fail
+    And the update-credit customer "Bob" balance should be 0.00 EUR

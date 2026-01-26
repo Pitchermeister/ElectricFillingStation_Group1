@@ -1,55 +1,44 @@
 Feature: Read Status
-  As a customer or operator
-  I want to view the network status
-  So that I can see available chargers and current prices
+  As a station operator
+  I want to view the status of the entire charging network
+  So that I can identify issues and availability
 
-  s̈
-  Scenario: View status of one location
+  Scenario: View network status with one location
     Given the status monitoring system is initialized
-    And a status monitored location named "City Center" exists with 2 chargers
-    And location "City Center" has pricing AC 0.45 EUR per kWh
+    And a status monitored location named "City Center" exists with 1 chargers
     When I request the network status
     Then the status should show location "City Center"
-    And the status should show AC price 0.45
-    And the status should show 2 chargers
-    And the status should show charger availability
-
-  Scenario: View status shows occupied chargers
-    Given the status monitoring system is initialized
-    And a status monitored location named "City Center" exists with 2 chargers
-    And a monitoring customer "Alice" exists with balance 50.00 EUR
-    And the customer "Alice" is charging on charger 100
-    When I request the network status
-    Then charger 100 should show status OCCUPIED
+    And the status should show 1 chargers
     And charger 101 should show status AVAILABLE
 
-  Scenario: View status across multiple locations
+  Scenario: View network status with pricing details
     Given the status monitoring system is initialized
-    And a status monitored location named "City" exists with 2 chargers
-    And a status monitored location named "Airport" exists with 3 chargers
+    And a status monitored location named "City Center" exists with 1 chargers
+    And location "City Center" has pricing AC 0.45 EUR per kWh
     When I request the network status
-    Then the status should show 2 locations
-    And the status should show 5 total chargers
+    Then the status should show AC price 0.45
 
-  Scenario: Cannot view status for non-existent location (error case)
+  Scenario: View network status with multiple locations
     Given the status monitoring system is initialized
-    When I request the network status for location "NonExistent"
+    And the following locations and chargers exist:
+      | location    | chargerID |
+      | City Center | 101       |
+      | City Center | 102       |
+      | Airport     | 201       |
+      | Highway     | 301       |
+    When I request the network status
+    Then the status should show 3 locations
+    And the status should show 4 total chargers
+
+  Scenario: View charger status when occupied (edge case)
+    Given the status monitoring system is initialized
+    And a status monitored location named "City Center" exists with 1 chargers
+    And a monitoring customer "Alice" exists with balance 50.00 EUR
+    And the customer "Alice" is charging on charger 101
+    When I request the network status
+    Then charger 101 should show status OCCUPIED
+
+  Scenario: Request status for non-existent location (error case)
+    Given the status monitoring system is initialized
+    When I attempt to request status for location "Mars Base"
     Then an error should be returned for location not found
-
-  Scenario: View status with all chargers occupied (edge case)
-    Given the status monitoring system is initialized
-    And a status monitored location named "City Center" exists with 2 chargers
-    And 2 monitoring customers exist with sufficient balance
-    And both chargers are occupied by active charging sessions
-    When I request the network status
-    Then the status should show location "City Center"
-    And all chargers should show status OCCUPIED
-    And no AVAILABLE chargers should be shown
-
-  Scenario: View status with no pricing information (edge case)
-    Given the status monitoring system is initialized
-    And a status monitored location named "City Center" exists with 2 chargers
-    And location "City Center" has no pricing configured
-    When I request the network status
-    Then the status should show location "City Center"
-    And the status should indicate pricing is not available

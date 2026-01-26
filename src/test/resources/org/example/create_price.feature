@@ -29,7 +29,6 @@ Feature: Create Price
     When I set location "City Center" pricing: AC 0.40 EUR per kWh
     And I set location "City Center" pricing: AC 0.60 EUR per kWh
     Then location "City Center" should have AC price 0.60 EUR per kWh
-    # ADDED: Timestamp check
     And location "City Center" pricing should have a timestamp
 
   Scenario: Set pricing with zero AC rate (edge case)
@@ -38,7 +37,6 @@ Feature: Create Price
     When I set pricing for location "Test Location": AC 0.00 EUR per kWh, DC 0.65 EUR per kWh, 0.20 EUR per min
     Then location "Test Location" should have AC price 0.00 EUR per kWh
     And location "Test Location" should have DC price 0.65 EUR per kWh
-    # ADDED: Timestamp check
     And location "Test Location" pricing should have a timestamp
 
   Scenario: Set pricing with very high DC rate (edge case)
@@ -46,7 +44,6 @@ Feature: Create Price
     And a pricing location named "Premium Location" exists with 1 charger
     When I set pricing for location "Premium Location": AC 0.45 EUR per kWh, DC 5.99 EUR per kWh, 0.20 EUR per min
     Then location "Premium Location" should have DC price 5.99 EUR per kWh
-    # ADDED: Timestamp check
     And location "Premium Location" pricing should have a timestamp
 
   Scenario: Attempt to set pricing for non-existent location (error case)
