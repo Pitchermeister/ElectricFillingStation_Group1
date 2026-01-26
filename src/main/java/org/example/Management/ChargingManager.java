@@ -1,6 +1,7 @@
 package org.example.Management;
 
-import org.example.domain.ChargingSession;
+// UPDATED IMPORT: Pointing to the inner class
+import org.example.domain.ChargingService.ChargingSession;
 
 import java.util.ArrayList;
 import java.util.List;

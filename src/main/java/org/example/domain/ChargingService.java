@@ -5,7 +5,9 @@ import org.example.Management.ChargingManager;
 import org.example.Management.ClientManager;
 import org.example.Management.StationManager;
 
+import java.time.Duration;
 import java.time.LocalDateTime;
+import java.util.Objects;
 
 public class ChargingService {
 
@@ -15,7 +17,7 @@ public class ChargingService {
     private final ChargingManager chargingManager;
 
     private long nextSessionId;
-    private ChargingSession activeSession;
+    private ChargingSession activeSession; // RESTORED: Single session
 
     public ChargingService(ClientManager clientManager, StationManager stationManager, BillingManager billingManager) {
         this.clientManager = clientManager;
@@ -25,6 +27,8 @@ public class ChargingService {
         this.nextSessionId = 1;
         this.activeSession = null;
     }
+
+    // --- HELPER METHODS ---
 
     private Client requireClient(int clientId) {
         Client client = clientManager.getClientById(clientId);
@@ -40,22 +44,17 @@ public class ChargingService {
         return charger;
     }
 
-    private Location requireLocationWithPricing(int locationId) {
-        Location loc = stationManager.getLocationById(locationId);
-        if (loc == null) throw new IllegalArgumentException("Location not found: " + locationId);
-        if (loc.getPriceConfiguration() == null) {
+    private PriceConfiguration requirePricing(int locationId) {
+        PriceConfiguration price = stationManager.getPricingForLocation(locationId);
+        if (price == null) {
             throw new IllegalStateException("No price configuration set for location: " + locationId);
         }
-        return loc;
+        return price;
     }
 
+    // --- MAIN ACTIONS ---
 
-    public ChargingSession startSession(int clientId,
-                                        int locationId,
-                                        int chargerId,
-                                        ChargerType mode,
-                                        LocalDateTime startTime) {
-
+    public ChargingSession startSession(int clientId, int locationId, int chargerId, ChargerType mode, LocalDateTime startTime) {
         if (activeSession != null) throw new IllegalStateException("There is already an active session. Finish it first.");
 
         Client client = requireClient(clientId);
@@ -67,27 +66,19 @@ public class ChargingService {
 
         long sessionId = nextSessionId++;
 
-
-        Location loc = requireLocationWithPricing(locationId);
-        PriceConfiguration priceSnapshot = new PriceConfiguration(loc.getPriceConfiguration());
-
+        PriceConfiguration currentPrice = requirePricing(locationId);
+        PriceConfiguration priceSnapshot = new PriceConfiguration(currentPrice);
 
         activeSession = new ChargingSession(
-                sessionId,
-                clientId,
-                locationId,
-                chargerId,
-                mode,
-                priceSnapshot,  // Snapshot instead of current reference
-                startTime
+                sessionId, clientId, locationId, chargerId, mode, priceSnapshot, startTime
         );
 
         charger.setStatus(ChargerStatus.OCCUPIED);
         return activeSession;
     }
 
+    // RESTORED: Standard signature
     public double finishSession(LocalDateTime endTime, double chargedKWh) {
-
         if (activeSession == null) throw new IllegalStateException("No active session to finish.");
 
         activeSession.finish(endTime, chargedKWh);
@@ -103,39 +94,94 @@ public class ChargingService {
 
         Location loc = stationManager.getLocationById(activeSession.getLocationId());
         String locationName = (loc != null) ? loc.getName() : ("LocationId " + activeSession.getLocationId());
-        billingManager.createEntryFromSession(activeSession, locationName);
 
+        billingManager.createEntryFromSession(activeSession, locationName);
         chargingManager.addSession(activeSession);
+
         activeSession = null;
 
         return totalCost;
     }
 
-    public ChargingSession getActiveSession() {
-        return activeSession;
-    }
+    // --- GETTERS ---
 
-    public boolean hasActiveSession() {
-        return activeSession != null;
-    }
+    public ChargingSession getActiveSession() { return activeSession; }
+    public boolean hasActiveSession() { return activeSession != null; }
+    public boolean isVehicleCharging() { return activeSession != null; }
+    public ChargingManager getChargingManager() { return chargingManager; }
+    public BillingManager getBillingManager() { return billingManager; }
 
-    public boolean isVehicleCharging() {
-        return activeSession != null;
-    }
+    // ==========================================
+    // INNER CLASS: ChargingSession
+    // ==========================================
+    public static class ChargingSession {
+        private final long sessionId;
+        private final int clientId;
+        private final int locationId;
+        private final int chargerId;
+        private final ChargerType mode;
+        private final PriceConfiguration priceAtStart;
+        private final LocalDateTime startTime;
 
-    public long getSessionDurationMinutes() {
-        return (activeSession != null) ? activeSession.getDurationMinutesRoundedUp() : 0;
-    }
+        private LocalDateTime endTime;
+        private double chargedKWh;
+        private boolean finished;
 
-    public double getEstimatedCost() {
-        return (activeSession != null) ? activeSession.calculateTotalPrice() : 0;
-    }
+        public ChargingSession(long sessionId, int clientId, int locationId, int chargerId,
+                               ChargerType mode, PriceConfiguration priceAtStart, LocalDateTime startTime) {
+            this.sessionId = sessionId;
+            this.clientId = clientId;
+            this.locationId = locationId;
+            this.chargerId = chargerId;
+            this.mode = mode;
+            this.priceAtStart = priceAtStart;
+            this.startTime = startTime;
+            this.finished = false;
+            this.chargedKWh = 0.0;
+            this.endTime = null;
+        }
 
-    public ChargingManager getChargingManager() {
-        return chargingManager;
-    }
+        public void finish(LocalDateTime endTime, double chargedKWh) {
+            if (finished) throw new IllegalStateException("Session already finished");
+            Objects.requireNonNull(endTime, "endTime must not be null");
+            if (endTime.isBefore(startTime)) throw new IllegalArgumentException("endTime must not be before startTime");
+            if (chargedKWh < 0) throw new IllegalArgumentException("chargedKWh must be >= 0");
 
-    public BillingManager getBillingManager() {
-        return billingManager;
+            this.endTime = endTime;
+            this.chargedKWh = chargedKWh;
+            this.finished = true;
+        }
+
+        public long getDurationMinutesRoundedUp() {
+            LocalDateTime effectiveEnd = (endTime != null) ? endTime : LocalDateTime.now();
+            long seconds = Duration.between(startTime, effectiveEnd).getSeconds();
+            if (seconds <= 0) return 0;
+            return (seconds + 59) / 60;
+        }
+
+        public double calculateTotalPrice() {
+            double pricePerKWh = (mode == ChargerType.AC) ? priceAtStart.getAcPricePerKWh() : priceAtStart.getDcPricePerKWh();
+            double pricePerMinute = (mode == ChargerType.AC) ? priceAtStart.getAcPricePerMinute() : priceAtStart.getDcPricePerMinute();
+            return (chargedKWh * pricePerKWh) + (getDurationMinutesRoundedUp() * pricePerMinute);
+        }
+
+        public InvoiceEntry toInvoiceEntry(int itemNumber, String locationName) {
+            return new InvoiceEntry(itemNumber, clientId, sessionId, locationName, chargerId, mode,
+                    startTime, getDurationMinutesRoundedUp(), chargedKWh, calculateTotalPrice());
+        }
+
+        public long getSessionId() { return sessionId; }
+        public int getClientId() { return clientId; }
+        public int getChargerId() { return chargerId; }
+        public int getLocationId() { return locationId; }
+        public ChargerType getMode() { return mode; }
+        public boolean isFinished() { return finished; }
+        public LocalDateTime getStartTime() { return startTime; }
+        public double getChargedKWh() { return chargedKWh; }
+        public double getPrice() { return calculateTotalPrice(); }
+        @Override
+        public String toString() {
+            return "ChargingSession{" + "sessionId=" + sessionId + ", clientId=" + clientId + ", finished=" + finished + '}';
+        }
     }
 }

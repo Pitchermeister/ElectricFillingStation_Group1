@@ -1,11 +1,12 @@
-package org.example.steps;
+// FIX: Changed from 'org.example.steps' to 'org.example' to match other step files
+package org.example;
 
 import io.cucumber.java.en.*;
 
 import org.example.Management.ChargingManager;
 import org.example.Management.ClientManager;
-import org.example.domain.ChargingSession;
 import org.example.domain.Client;
+import org.example.domain.ChargingService.ChargingSession;
 
 import java.time.LocalDateTime;
 
@@ -51,11 +52,12 @@ public class DeleteClientSteps {
                 clientId,
                 1, // locationId
                 1, // chargerId
-                null, // chargerType (für diesen Test egal)
-                null, // priceConfiguration (für diesen Test egal)
+                null, // chargerType (irrelevant for this test)
+                null, // priceConfiguration (irrelevant for this test)
                 LocalDateTime.now().minusMinutes(5)
         );
-        // nicht finish() -> active
+
+        // This session is NOT finished, so it is active
         chargingManager.addSession(session);
 
         assertTrue(

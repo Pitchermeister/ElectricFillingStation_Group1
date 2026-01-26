@@ -1,6 +1,7 @@
 package org.example.Management;
 
-import org.example.domain.ChargingSession;
+// UPDATED IMPORT: Pointing to the inner class
+import org.example.domain.ChargingService.ChargingSession;
 import org.example.domain.Client;
 import org.example.domain.InvoiceEntry;
 
@@ -39,22 +40,6 @@ public class BillingManager {
         return new ArrayList<>(entries);
     }
 
-    // UPDATE
-    public boolean updateEntry(int itemNumber, InvoiceEntry updated) {
-        for (int i = 0; i < entries.size(); i++) {
-            if (entries.get(i).getItemNumber() == itemNumber) {
-                entries.set(i, updated);
-                return true;
-            }
-        }
-        return false;
-    }
-
-    // DELETE
-    public boolean deleteEntry(int itemNumber) {
-        return entries.removeIf(e -> e.getItemNumber() == itemNumber);
-    }
-
     // STATISTICS
     public double getTotalSpentForClient(int clientId) {
         double total = 0;
@@ -66,7 +51,7 @@ public class BillingManager {
         return getEntriesForClient(clientId).size();
     }
 
-    // INVOICE REPORT - sorted by start time, shows all required info + balance
+    // INVOICE REPORT
     public String getDetailedInvoiceReport(int clientId, ClientManager clientManager) {
         Client client = clientManager.getClientById(clientId);
         if (client == null) return "Client not found: " + clientId;
@@ -77,9 +62,9 @@ public class BillingManager {
         double spent = getTotalSpentForClient(clientId);
         double balance = client.getAccount().getBalance();
 
-        sb.append("Balance: Top-ups €").append(String.format("%.2f", spent + balance))
-          .append(" | Spent €").append(String.format("%.2f", spent))
-          .append(" | Remaining €").append(String.format("%.2f", balance)).append("\n\n");
+        sb.append("Balance: Top-ups EUR ").append(String.format("%.2f", spent + balance))
+                .append(" | Spent EUR ").append(String.format("%.2f", spent))
+                .append(" | Remaining EUR ").append(String.format("%.2f", balance)).append("\n\n");
 
         List<InvoiceEntry> sorted = getEntriesForClient(clientId);
         if (sorted.isEmpty()) return sb.append("No sessions.\n").toString();
@@ -90,24 +75,22 @@ public class BillingManager {
         double totalKWh = 0;
         for (InvoiceEntry e : sorted) {
             sb.append("  #").append(e.getItemNumber()).append(" | ").append(e.getLocationName())
-              .append(" | Ch").append(e.getChargerId()).append(" | ").append(e.getMode())
-              .append(" | ").append(e.getDurationMinutes()).append("min | ")
-              .append(String.format("%.1f", e.getChargedKWh())).append("kWh | €")
-              .append(String.format("%.2f", e.getPrice())).append("\n");
+                    .append(" | Ch").append(e.getChargerId()).append(" | ").append(e.getMode())
+                    .append(" | ").append(e.getDurationMinutes()).append("min | ")
+                    .append(String.format("%.1f", e.getChargedKWh())).append("kWh | EUR ")
+                    .append(String.format("%.2f", e.getPrice())).append("\n");
             totalKWh += e.getChargedKWh();
         }
 
-        sb.append("\nTotal: ").append(sorted.size()).append(" sessions | Avg €")
-          .append(String.format("%.2f", spent / sorted.size())).append(" | Avg ")
-          .append(String.format("%.1f", totalKWh / sorted.size())).append("kWh\n");
+        sb.append("\nTotal: ").append(sorted.size()).append(" sessions | Avg EUR ")
+                .append(String.format("%.2f", spent / sorted.size())).append(" | Avg ")
+                .append(String.format("%.1f", totalKWh / sorted.size())).append("kWh\n");
 
         return sb.toString();
     }
 
     @Override
     public String toString() {
-        StringBuilder sb = new StringBuilder("=== BILLING (").append(entries.size()).append(" invoices) ===\n");
-        for (InvoiceEntry e : entries) sb.append("  ").append(e).append("\n");
-        return sb.toString();
+        return "=== BILLING (" + entries.size() + " invoices) ===";
     }
 }

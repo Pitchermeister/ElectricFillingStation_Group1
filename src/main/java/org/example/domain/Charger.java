@@ -7,12 +7,16 @@ public class Charger {
     private ChargerStatus status;
     private int locationId; // Reference to Location
 
+    // ADDED: Missing field for pricing
+    private PriceConfiguration priceConfiguration;
+
     public Charger(int id, int serialNumber, double maxPowerKw) {
         this.chargerId = id;
         this.serialNumber = serialNumber;
         this.maxPowerKw = maxPowerKw;
         this.status = ChargerStatus.IN_OPERATION_FREE;
         this.locationId = -1; // No location assigned yet
+        this.priceConfiguration = null; // Default to null until set
     }
 
     // --- GETTERS ---
@@ -37,6 +41,11 @@ public class Charger {
         return locationId;
     }
 
+    // ADDED: Getter for pricing
+    public PriceConfiguration getPriceConfiguration() {
+        return priceConfiguration;
+    }
+
     // --- SETTERS ---
     public void setChargerId(int chargerId) {
         this.chargerId = chargerId;
@@ -58,6 +67,11 @@ public class Charger {
         this.locationId = locationId;
     }
 
+    // ADDED: Setter for pricing
+    public void setPriceConfiguration(PriceConfiguration priceConfiguration) {
+        this.priceConfiguration = priceConfiguration;
+    }
+
     @Override
     public String toString() {
         return "Charger{" +
@@ -66,6 +80,7 @@ public class Charger {
                 ", maxPower=" + maxPowerKw + "kW" +
                 ", status=" + status +
                 ", location=" + locationId +
+                ", price=" + (priceConfiguration != null ? "SET" : "NONE") +
                 '}';
     }
 }

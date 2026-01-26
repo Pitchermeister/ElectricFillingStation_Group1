@@ -1,6 +1,8 @@
 package org.example.Management;
 
 import org.example.domain.Client;
+// FIX: Update import to the new inner class
+import org.example.domain.ChargingService.ChargingSession;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -50,8 +52,6 @@ public class ClientManager {
     }
 
     // DELETE
-// DELETE
-// DELETE
     public void deleteClient(int id, ChargingManager chargingManager) {
         Client client = getClientById(id);
         if (client == null) {
@@ -59,19 +59,19 @@ public class ClientManager {
             return;
         }
 
-        // 1) Darf nicht gelöscht werden, wenn Guthaben vorhanden ist
+        // 1) Cannot delete if balance > 0
         if (client.getAccount() != null && client.getAccount().getBalance() > 0) {
             System.out.println("Client cannot be deleted (balance > 0): " + id);
             return;
         }
 
-        // 2) Darf nicht gelöscht werden, wenn gerade am Laden
-        // chargingManager muss im ClientManager als Feld existieren (und initialisiert/übergeben werden)
+        // 2) Cannot delete if currently charging
         if (chargingManager == null) {
             System.out.println("Client cannot be deleted (chargingManager not set): " + id);
             return;
         }
 
+        // The session type is now recognized correctly via the import
         boolean isCharging = chargingManager.getSessionsByClientId(id).stream()
                 .anyMatch(session -> !session.isFinished());
 
@@ -84,9 +84,6 @@ public class ClientManager {
         System.out.println("Client deleted: " + id);
     }
 
-
-
-
     @Override
     public String toString() {
         StringBuilder sb = new StringBuilder();
@@ -94,10 +91,10 @@ public class ClientManager {
         sb.append("Total Clients: ").append(clientDatabase.size()).append("\n");
         for (Client client : clientDatabase) {
             sb.append("- ID: ").append(client.getClientId())
-              .append(" | Name: ").append(client.getName())
-              .append(" | Email: ").append(client.getEmail())
-              .append(" | Balance: EUR ").append(client.getAccount().getBalance())
-              .append("\n");
+                    .append(" | Name: ").append(client.getName())
+                    .append(" | Email: ").append(client.getEmail())
+                    .append(" | Balance: EUR ").append(client.getAccount().getBalance())
+                    .append("\n");
         }
         return sb.toString();
     }

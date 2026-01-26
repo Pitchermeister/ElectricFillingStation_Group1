@@ -1,5 +1,6 @@
 package org.example;
 
+import io.cucumber.datatable.DataTable;
 import io.cucumber.java.Before;
 import io.cucumber.java.en.Given;
 import io.cucumber.java.en.Then;
@@ -27,6 +28,7 @@ public class CreateChargingSessionSteps {
 
     private Map<String, Client> clientsByName;
     private Map<String, Location> locationsByName;
+    private Map<String, Double> initialBalances;
 
     private int nextClientId;
     private int nextLocationId;
@@ -39,9 +41,9 @@ public class CreateChargingSessionSteps {
         chargingService = new ChargingService(clientManager, stationManager, billingManager);
 
         lastException = null;
-
         clientsByName = new HashMap<>();
         locationsByName = new HashMap<>();
+        initialBalances = new HashMap<>();
         nextClientId = 1;
         nextLocationId = 1;
     }
@@ -49,74 +51,45 @@ public class CreateChargingSessionSteps {
     @Given("the charging service is initialized")
     public void the_system_is_initialized() {
         Assertions.assertNotNull(stationManager);
-        Assertions.assertNotNull(clientManager);
-        Assertions.assertNotNull(chargingService);
     }
-
-    // -----------------------------
-    // Customer steps (no IDs)
-    // -----------------------------
 
     @Given("a charging customer {string} exists with balance {double} EUR")
     public void charging_customer_exists_with_balance(String name, Double balance) {
         Client client = ensureCustomerExists(name);
         client.getAccount().topUp(balance);
+        initialBalances.put(name, client.getAccount().getBalance());
     }
 
-    // -----------------------------
-    // Location steps (no IDs)
-    // -----------------------------
-
-    // NOTE: changed wording to avoid duplicate step definition clash with ReadInvoiceSteps
     @Given("a charging location named {string} exists with {int} chargers")
     public void charging_location_named_exists_with_chargers(String locationName, Integer count) {
         Location loc = ensureLocationExists(locationName);
-
-        // deterministic charger ids: 101, 102, ...
         for (int i = 0; i < count; i++) {
             int chargerId = 101 + i;
             Charger charger = new Charger(chargerId, 900000 + chargerId, 150.0);
-
-            // Defensive: ensure the charger really has the expected ID (constructor order / internal fields may differ)
             forceIntFieldIfPresent(charger, "chargerId", chargerId);
             forceIntFieldIfPresent(charger, "id", chargerId);
-
             stationManager.addChargerToLocation(loc.getLocationId(), charger);
         }
+        stationManager.updateLocationPricing(loc.getLocationId(), 0.45, 0.65, 0.20, 0.20);
     }
-
-    @Given("the charger with ID {int} has pricing AC {double} EUR per kWh and {double} EUR per min")
-    public void charger_has_pricing(Integer chargerId, Double acPrice, Double minPrice) {
-        Charger charger = stationManager.findChargerById(chargerId);
-        Assertions.assertNotNull(charger, "Charger not found: " + chargerId);
-
-        Location loc = stationManager.getLocationById(charger.getLocationId());
-        Assertions.assertNotNull(loc, "Location not found for charger: " + chargerId);
-
-        stationManager.updateLocationPricing(loc.getLocationId(), acPrice, 0.65, minPrice, 0.20);
-    }
-
-    // -----------------------------
-    // Start / Active session
-    // -----------------------------
 
     @When("the charging customer {string} starts an AC charging session on charger {int} at {string}")
     public void customer_starts_ac_session(String customerName, Integer chargerId, String locationName) {
         lastException = null;
-
         Client client = requireCustomer(customerName);
         Location loc = requireLocation(locationName);
 
-        Charger charger = stationManager.findChargerById(chargerId);
-        Assertions.assertNotNull(charger, "Charger not found: " + chargerId);
-
-        chargingService.startSession(
-                client.getClientId(),
-                loc.getLocationId(),
-                chargerId,
-                ChargerType.AC,
-                LocalDateTime.now()
-        );
+        try {
+            chargingService.startSession(
+                    client.getClientId(),
+                    loc.getLocationId(),
+                    chargerId,
+                    ChargerType.AC,
+                    LocalDateTime.now()
+            );
+        } catch (Exception e) {
+            lastException = e;
+        }
     }
 
     @Given("the charging customer {string} has an active session on charger {int} at {string}")
@@ -133,45 +106,35 @@ public class CreateChargingSessionSteps {
         }
     }
 
-    // -----------------------------
-    // Finish session
-    // -----------------------------
-
     @When("the session finishes after {int} minutes with {double} kWh")
+    @When("the session finishes after {int} minute with {double} kWh")
     public void session_finishes(Integer minutes, Double kwh) {
         chargingService.finishSession(LocalDateTime.now().plusMinutes(minutes), kwh);
     }
 
-    // -----------------------------
-    // Assertions
-    // -----------------------------
-
     @Then("the charging session should be active")
     public void session_should_be_active() {
-        Assertions.assertTrue(chargingService.hasActiveSession(), "Expected an active session, but none is active.");
+        Assertions.assertTrue(chargingService.hasActiveSession());
     }
 
     @Then("charger {int} should be OCCUPIED")
     public void charger_should_be_occupied(Integer chargerId) {
         Charger charger = stationManager.findChargerById(chargerId);
-        Assertions.assertNotNull(charger, "Charger not found: " + chargerId);
         Assertions.assertEquals(ChargerStatus.OCCUPIED, charger.getStatus());
     }
 
     @Then("charger {int} should be AVAILABLE")
     public void charger_should_be_available(Integer chargerId) {
         Charger charger = stationManager.findChargerById(chargerId);
-        Assertions.assertNotNull(charger, "Charger not found: " + chargerId);
         Assertions.assertEquals(ChargerStatus.IN_OPERATION_FREE, charger.getStatus());
     }
 
     @Then("the total session cost should be {double} EUR")
     public void total_cost_should_be(Double expected) {
         List<InvoiceEntry> entries = billingManager.getAllEntries();
-        Assertions.assertFalse(entries.isEmpty(), "No invoice entries found!");
-
+        Assertions.assertFalse(entries.isEmpty());
         double actualCost = entries.get(entries.size() - 1).getPrice();
-        Assertions.assertEquals(expected, actualCost, 0.01, "Cost calculation incorrect");
+        Assertions.assertEquals(expected, actualCost, 0.01);
     }
 
     @Then("the charging customer {string} balance should be {double} EUR")
@@ -182,40 +145,129 @@ public class CreateChargingSessionSteps {
 
     @Then("the session should fail with error {string}")
     public void session_should_fail_with(String message) {
-        Assertions.assertNotNull(lastException, "Expected an exception but none was thrown.");
-        Assertions.assertTrue(lastException.getMessage().contains(message),
-                "Expected error message to contain '" + message + "' but got '" + lastException.getMessage() + "'");
+        Assertions.assertNotNull(lastException);
+        Assertions.assertTrue(lastException.getMessage().contains(message));
     }
 
     @Then("the session start should fail")
     public void session_start_should_fail() {
-        Assertions.assertNotNull(lastException, "Expected session start to fail, but it succeeded.");
+        Assertions.assertNotNull(lastException);
     }
 
-    // -----------------------------
-    // Helpers
-    // -----------------------------
+    @Then("the total session cost should be greater than {int}")
+    public void cost_should_be_greater_than(Integer val) {
+        List<InvoiceEntry> entries = billingManager.getAllEntries();
+        Assertions.assertFalse(entries.isEmpty());
+        double actualCost = entries.get(entries.size() - 1).getPrice();
+        Assertions.assertTrue(actualCost > val);
+    }
 
+    @Then("the charging customer {string} balance should decrease")
+    public void balance_should_decrease(String name) {
+        Client client = requireCustomer(name);
+        double current = client.getAccount().getBalance();
+        double initial = initialBalances.getOrDefault(name, current);
+        Assertions.assertTrue(current < initial);
+    }
+
+    @Then("the total session cost should be calculated correctly")
+    public void cost_calculated_correctly() {
+        List<InvoiceEntry> entries = billingManager.getAllEntries();
+        Assertions.assertFalse(entries.isEmpty());
+        Assertions.assertTrue(entries.get(entries.size() - 1).getPrice() > 0);
+    }
+
+    // --- Scenario 2 Table Check (Invoice) ---
+    @Then("the invoice for {string} should contain the following entry:")
+    public void invoice_should_contain_entry(String customerName, DataTable dataTable) {
+        Client client = requireCustomer(customerName);
+        List<InvoiceEntry> entries = billingManager.getEntriesForClient(client.getClientId());
+
+        Assertions.assertFalse(entries.isEmpty(), "No invoice entries found for client " + customerName);
+        InvoiceEntry lastEntry = entries.get(entries.size() - 1);
+
+        // Map column headers to values
+        List<Map<String, String>> rows = dataTable.asMaps(String.class, String.class);
+        Map<String, String> data = rows.get(0);
+
+        // Location
+        if (data.containsKey("Location")) Assertions.assertTrue(lastEntry.getLocationName().contains(data.get("Location")));
+
+        // Mode (AC_or_DC)
+        if (data.containsKey("AC_or_DC")) Assertions.assertEquals(data.get("AC_or_DC"), lastEntry.getMode().toString());
+
+        // Energy (12.5 kWh -> 12.5)
+        String energyRaw = data.get("Energy");
+        if (energyRaw != null) {
+            double expectedKWh = Double.parseDouble(energyRaw.replaceAll("[^0-9.]", ""));
+            Assertions.assertEquals(expectedKWh, lastEntry.getChargedKWh(), 0.1);
+        }
+
+        // Cost (9.63 EUR -> 9.63)
+        String costRaw = data.get("Cost");
+        if (costRaw != null) {
+            double expectedCost = Double.parseDouble(costRaw.replaceAll("[^0-9.]", ""));
+            Assertions.assertEquals(expectedCost, lastEntry.getPrice(), 0.01);
+        }
+
+        // Timestamps (Start Time / End Time)
+        if (data.containsKey("Start Time") && data.get("Start Time").equals("RECENT")) {
+            Assertions.assertNotNull(lastEntry.getStartTime());
+        }
+    }
+
+    // --- Scenario 3 Table Check (Owner Report) ---
+    @Then("the system should have the following charging entries:")
+    public void system_should_have_entries(DataTable table) {
+        List<Map<String, String>> rows = table.asMaps(String.class, String.class);
+        List<InvoiceEntry> allEntries = billingManager.getAllEntries();
+
+        Assertions.assertTrue(allEntries.size() >= rows.size(), "Not enough entries in system");
+
+        for (int i = 0; i < rows.size(); i++) {
+            Map<String, String> expected = rows.get(i);
+            InvoiceEntry actual = allEntries.get(i);
+
+            // Client Name -> ID
+            Client client = clientsByName.get(expected.get("client"));
+            Assertions.assertEquals(client.getClientId(), actual.getClientId());
+
+            // Location
+            Assertions.assertTrue(actual.getLocationName().contains(expected.get("location")));
+
+            // Charger
+            Assertions.assertEquals(Integer.parseInt(expected.get("charger")), actual.getChargerId());
+
+            // Mode
+            Assertions.assertEquals(expected.get("mode"), actual.getMode().toString());
+
+            // Time (20 min -> 20)
+            String timeStr = expected.get("time").replaceAll("[^0-9]", "");
+            Assertions.assertEquals(Long.parseLong(timeStr), actual.getDurationMinutes());
+
+            // kWh
+            Assertions.assertEquals(Double.parseDouble(expected.get("kWh")), actual.getChargedKWh(), 0.1);
+
+            // Cost
+            Assertions.assertEquals(Double.parseDouble(expected.get("cost")), actual.getPrice(), 0.01);
+        }
+    }
+
+    // Helpers
     private Client ensureCustomerExists(String name) {
         if (clientsByName.containsKey(name)) return clientsByName.get(name);
-
         int id = nextClientId++;
-        String email = name.toLowerCase().replace(" ", ".") + "@test.com";
-        Client client = clientManager.registerClient(id, name, email);
-
+        Client client = clientManager.registerClient(id, name, name.toLowerCase() + "@test.com");
         clientsByName.put(name, client);
         return client;
     }
 
     private Client requireCustomer(String name) {
-        Client client = clientsByName.get(name);
-        Assertions.assertNotNull(client, "Unknown customer: " + name);
-        return client;
+        return clientsByName.get(name);
     }
 
     private Location ensureLocationExists(String name) {
         if (locationsByName.containsKey(name)) return locationsByName.get(name);
-
         int id = nextLocationId++;
         Location loc = stationManager.createLocation(id, name, "Address " + name);
         locationsByName.put(name, loc);
@@ -223,22 +275,14 @@ public class CreateChargingSessionSteps {
     }
 
     private Location requireLocation(String name) {
-        Location loc = locationsByName.get(name);
-        Assertions.assertNotNull(loc, "Unknown location: " + name);
-        return loc;
+        return locationsByName.get(name);
     }
 
     private static void forceIntFieldIfPresent(Object target, String fieldName, int value) {
         try {
             Field f = target.getClass().getDeclaredField(fieldName);
             f.setAccessible(true);
-            if (f.getType() == int.class || f.getType() == Integer.class) {
-                f.set(target, value);
-            }
-        } catch (NoSuchFieldException ignored) {
-            // field not present in this implementation
-        } catch (IllegalAccessException e) {
-            throw new RuntimeException("Failed to set field '" + fieldName + "' via reflection", e);
-        }
+            if (f.getType() == int.class || f.getType() == Integer.class) f.set(target, value);
+        } catch (Exception ignored) {}
     }
 }

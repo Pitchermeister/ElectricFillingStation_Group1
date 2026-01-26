@@ -16,13 +16,13 @@ public class StationManager {
     private int id = 1;
 
     // CREATE
-
     public Location createLocation(String name, String address) {
         Location location = new Location(this.id, name, address);
         locations.add(location);
         this.id += 1;
         return location;
     }
+
     public Location createLocation(int id, String name, String address) {
         Location location = new Location(id, name, address);
         locations.add(location);
@@ -72,23 +72,34 @@ public class StationManager {
         locations.removeIf(loc -> loc.getLocationId() == id);
     }
 
-    // PRICING - can be updated multiple times per day
-// PRICING - can be updated multiple times per day
+    // PRICING
     public void updateLocationPricing(int locationId, double acKWh, double dcKWh, double acMin, double dcMin) {
         Location location = getLocationById(locationId);
-        if (location == null) return;
 
-        // ✅ stable id: locationId (instead of identityHashCode)
-        PriceConfiguration pricing = new PriceConfiguration(locationId, acKWh, dcKWh, acMin, dcMin);
-        location.setPriceConfiguration(pricing);
+        if (location == null || location.getChargers().isEmpty()) return;
+
+        // FIX: Use location.getLocationId() instead of System.identityHashCode(...)
+        PriceConfiguration pricing = new PriceConfiguration(
+                location.getLocationId(), // <--- CHANGED THIS
+                acKWh, dcKWh, acMin, dcMin);
+
+        // We save the price into the CHARGERS
+        for (Charger charger : location.getChargers()) {
+            charger.setPriceConfiguration(pricing);
+        }
     }
 
+    // --- FIX IS HERE ---
     public PriceConfiguration getPricingForLocation(int locationId) {
         Location location = getLocationById(locationId);
-        if (location == null) return null;
-        return location.getPriceConfiguration();
-    }
 
+        // Safety check: if location missing or has no chargers, we can't get price
+        if (location == null || location.getChargers().isEmpty()) return null;
+
+        // RETRIEVE FROM CHARGER (because that's where we saved it!)
+        return location.getChargers().get(0).getPriceConfiguration();
+    }
+    // -------------------
 
     // NETWORK STATUS
     public int getAvailableChargersCount() {
@@ -134,25 +145,25 @@ public class StationManager {
             PriceConfiguration p = getPricingForLocation(loc.getLocationId());
             if (p != null) {
                 sb.append("  AC: €").append(p.getAcPricePerKWh()).append("/kWh+€")
-                  .append(p.getAcPricePerMinute()).append("/min | DC: €")
-                  .append(p.getDcPricePerKWh()).append("/kWh+€")
-                  .append(p.getDcPricePerMinute()).append("/min\n");
+                        .append(p.getAcPricePerMinute()).append("/min | DC: €")
+                        .append(p.getDcPricePerKWh()).append("/kWh+€")
+                        .append(p.getDcPricePerMinute()).append("/min\n");
             }
 
             int available = 0;
             for (Charger c : loc.getChargers()) {
                 String status = c.getStatus() == ChargerStatus.IN_OPERATION_FREE ? "AVAILABLE" :
-                               c.getStatus() == ChargerStatus.OCCUPIED ? "OCCUPIED" : "OUT OF ORDER";
+                        c.getStatus() == ChargerStatus.OCCUPIED ? "OCCUPIED" : "OUT OF ORDER";
                 sb.append("  #").append(c.getChargerId()).append(" [")
-                  .append(c.getMaxPowerKw()).append("kW] - ").append(status).append("\n");
+                        .append(c.getMaxPowerKw()).append("kW] - ").append(status).append("\n");
                 if (c.getStatus() == ChargerStatus.IN_OPERATION_FREE) available++;
             }
             sb.append("  (").append(available).append("/").append(loc.getChargers().size())
-              .append(" available)\n\n");
+                    .append(" available)\n\n");
         }
 
         sb.append("Total: ").append(locations.size()).append(" locations, ")
-          .append(getTotalChargersCount()).append(" chargers\n");
+                .append(getTotalChargersCount()).append(" chargers\n");
 
         return sb.toString();
     }

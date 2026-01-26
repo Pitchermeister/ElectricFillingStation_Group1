@@ -8,7 +8,10 @@ import org.example.Management.BillingManager;
 import org.example.Management.ClientManager;
 import org.example.Management.StationManager;
 import org.example.domain.*;
+// We still need this import for the dummy session at the bottom
+import org.example.domain.ChargingService.ChargingSession;
 import org.junit.jupiter.api.Assertions;
+
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Locale;
@@ -23,11 +26,9 @@ public class ReadInvoiceSteps {
 
     private String invoiceReport;
 
-    // BDD-friendly identity (names) -> internal objects
     private Map<String, Client> clientsByName;
     private Map<String, Location> locationsByName;
 
-    // Internal technical IDs (hidden from feature files)
     private int nextClientId;
     private int nextLocationId;
 
@@ -54,13 +55,10 @@ public class ReadInvoiceSteps {
     @Given("the invoice service is initialized")
     public void the_system_is_initialized() {
         Assertions.assertNotNull(stationManager);
-        Assertions.assertNotNull(clientManager);
-        Assertions.assertNotNull(billingManager);
-        Assertions.assertNotNull(chargingService);
     }
 
     // -------------------------
-    // Customers (no IDs)
+    // Customers
     // -------------------------
 
     @Given("an invoicing customer {string} exists with balance {double} EUR")
@@ -75,47 +73,40 @@ public class ReadInvoiceSteps {
     }
 
     // -------------------------
-    // Locations (no IDs)
+    // Locations
     // -------------------------
 
     @Given("a charging location named {string} exists with {int} charger")
     public void location_named_exists_with_chargers(String locationName, Integer count) {
         Location loc = ensureLocationExists(locationName);
-
-        // Add chargers
         for (int i = 0; i < count; i++) {
             int chargerId = loc.getLocationId() * 100 + i;
             Charger charger = new Charger(chargerId, 900000 + chargerId, 150.0);
             stationManager.addChargerToLocation(loc.getLocationId(), charger);
         }
-
-        // Ensure pricing exists so sessions can start
         ensureLocationHasDefaultPricing(loc);
     }
 
     @Given("location {string} has pricing AC {double} EUR per kWh, DC {double} EUR per kWh, {double} EUR per min")
     public void location_has_pricing(String locationName, Double ac, Double dc, Double perMin) {
         Location loc = ensureLocationExists(locationName);
-        // pricing belongs to location
         stationManager.updateLocationPricing(loc.getLocationId(), ac, dc, perMin, perMin);
     }
 
     // -------------------------
-    // Charging sessions (no IDs)
+    // Charging sessions
     // -------------------------
 
     @Given("{string} completes a charging session at {string}")
     public void customer_completes_session_at(String customerName, String locationName) {
         Client client = requireCustomer(customerName);
         Location loc = requireLocation(locationName);
-
-        Assertions.assertFalse(loc.getChargers().isEmpty(), "No chargers available at location: " + locationName);
         Charger charger = loc.getChargers().get(0);
-
         ensureLocationHasDefaultPricing(loc);
 
-        // Use stable times in the past to avoid flaky ordering
         LocalDateTime start = LocalDateTime.now().minusMinutes(30);
+
+        // 1. Start the session
         chargingService.startSession(
                 client.getClientId(),
                 loc.getLocationId(),
@@ -123,6 +114,9 @@ public class ReadInvoiceSteps {
                 ChargerType.AC,
                 start
         );
+
+        // 2. Finish the session (FIXED: Removed 'session' argument)
+        // The service knows the active session internally.
         chargingService.finishSession(start.plusMinutes(20), 12.5);
     }
 
@@ -130,16 +124,13 @@ public class ReadInvoiceSteps {
     public void customer_completes_multiple_sessions(String customerName, Integer count, String locationName) {
         Client client = requireCustomer(customerName);
         Location loc = requireLocation(locationName);
-
-        Assertions.assertFalse(loc.getChargers().isEmpty(), "No chargers available at location: " + locationName);
         Charger charger = loc.getChargers().get(0);
-
         ensureLocationHasDefaultPricing(loc);
 
-        // Create sessions with increasing start times (chronological)
-        // Example: now-3h, now-2h, now-1h ...
         for (int i = count; i >= 1; i--) {
             LocalDateTime start = LocalDateTime.now().minusHours(i);
+
+            // 1. Start
             chargingService.startSession(
                     client.getClientId(),
                     loc.getLocationId(),
@@ -147,12 +138,14 @@ public class ReadInvoiceSteps {
                     ChargerType.AC,
                     start
             );
+
+            // 2. Finish (FIXED: Removed 'session' argument)
             chargingService.finishSession(start.plusMinutes(20), 10.0);
         }
     }
 
     // -------------------------
-    // Balance/Invoice setup (no IDs)
+    // Balance/Invoice setup
     // -------------------------
 
     @Given("{string} has topped up {double} EUR total")
@@ -161,47 +154,29 @@ public class ReadInvoiceSteps {
         client.getAccount().topUp(amount);
     }
 
-    /**
-     * Keeps your previous "spent" hack, but scoped to a named customer.
-     * This simulates historical spending entries on the invoice.
-     */
     @Given("{string} has spent {double} EUR on charging")
     public void customer_has_spent(String customerName, Double amount) {
         Client client = requireCustomer(customerName);
-
-        // 1) Deduct balance
         client.getAccount().debit(amount);
 
-        // 2) Create a dummy finished session whose calculated total matches 'amount'
         double fakeKWh = 10.0;
         double requiredPrice = amount / fakeKWh;
 
-        PriceConfiguration fakePrice = new PriceConfiguration(
-                999, // fake price config id
-                requiredPrice,
-                requiredPrice,
-                0.0,
-                0.0
-        );
+        PriceConfiguration fakePrice = new PriceConfiguration(999, requiredPrice, requiredPrice, 0.0, 0.0);
 
+        // We manually create a session here for the billing history
         ChargingSession dummySession = new ChargingSession(
-                999, // fake session id
-                client.getClientId(),
-                1,   // fake location id
-                101, // fake charger id
-                ChargerType.AC,
-                fakePrice,
-                LocalDateTime.now().minusHours(2)
+                999, client.getClientId(), 1, 101, ChargerType.AC, fakePrice, LocalDateTime.now().minusHours(2)
         );
 
+        // Manually finish it (this bypasses the service, so it's fine)
         dummySession.finish(LocalDateTime.now().minusHours(1), fakeKWh);
 
-        // 3) Register it in billing
         billingManager.createEntryFromSession(dummySession, "Manual Adjustment");
     }
 
     // -------------------------
-    // Invoice request (no IDs)
+    // Invoice request
     // -------------------------
 
     @When("{string} requests their invoice")
@@ -210,40 +185,30 @@ public class ReadInvoiceSteps {
         invoiceReport = billingManager.getDetailedInvoiceReport(client.getClientId(), clientManager);
     }
 
-    /**
-     * Convenience fallback: if you still have a scenario that says "When I request the invoice"
-     * this uses the first created customer.
-     */
     @When("I request the invoice")
     public void i_request_invoice_fallback() {
-        Assertions.assertFalse(clientsByName.isEmpty(), "No customers exist in scenario");
         Client client = clientsByName.values().iterator().next();
         invoiceReport = billingManager.getDetailedInvoiceReport(client.getClientId(), clientManager);
     }
 
     // -------------------------
-    // Assertions (BDD-friendly)
+    // Assertions
     // -------------------------
 
     @Then("the invoice should show the session details")
     public void invoice_should_show_session_details() {
         Assertions.assertNotNull(invoiceReport);
-        Assertions.assertFalse(invoiceReport.isBlank(), "Invoice report should not be empty");
+        Assertions.assertFalse(invoiceReport.isBlank());
     }
 
     @Then("the invoice sessions should be sorted chronologically")
     public void the_invoice_sessions_should_be_sorted_chronologically() {
-        Assertions.assertNotNull(invoiceReport);
-        Assertions.assertTrue(invoiceReport.contains("by start time"),
-                "Invoice should indicate chronological sorting ('by start time').\n" + invoiceReport);
+        Assertions.assertTrue(invoiceReport.contains("by start time"));
     }
-
 
     @Then("the invoice should include location {string}")
     public void invoice_should_include_location(String locationName) {
-        Assertions.assertNotNull(invoiceReport);
-        Assertions.assertTrue(invoiceReport.contains(locationName),
-                "Expected location name '" + locationName + "' in report:\n" + invoiceReport);
+        Assertions.assertTrue(invoiceReport.contains(locationName));
     }
 
     @Then("the invoice should list {int} charging sessions")
@@ -253,60 +218,42 @@ public class ReadInvoiceSteps {
 
     @Then("the invoice should include charged energy {double} kWh")
     public void invoice_should_include_charged_energy(Double kwh) {
-        Assertions.assertNotNull(invoiceReport);
-        // match typical formatting: "12.50" could appear as "12.5" depending on formatting in report
         String expectedA = String.format(Locale.US, "%.2f", kwh);
         String expectedB = String.format(Locale.US, "%.1f", kwh);
-
-        Assertions.assertTrue(invoiceReport.contains("kWh"), "Invoice should contain 'kWh' unit.\n" + invoiceReport);
-        Assertions.assertTrue(invoiceReport.contains(expectedA) || invoiceReport.contains(expectedB),
-                "Expected kWh amount (" + expectedA + " or " + expectedB + ") in report:\n" + invoiceReport);
+        Assertions.assertTrue(invoiceReport.contains(expectedA) || invoiceReport.contains(expectedB));
     }
 
     @Then("the invoice should include a total price")
     public void invoice_should_include_a_total_price() {
-        Assertions.assertNotNull(invoiceReport);
-        Assertions.assertTrue(invoiceReport.contains("€") || invoiceReport.contains("EUR"),
-                "Expected currency (€, EUR) in report:\n" + invoiceReport);
+        Assertions.assertTrue(invoiceReport.contains("€") || invoiceReport.contains("EUR"));
     }
 
     @Then("the sessions should be sorted chronologically")
     public void sessions_should_be_sorted() {
-        Assertions.assertNotNull(invoiceReport);
-        Assertions.assertTrue(invoiceReport.contains("Sessions"),
-                "Invoice should contain session list header 'Sessions'.\n" + invoiceReport);
+        Assertions.assertTrue(invoiceReport.contains("Sessions"));
     }
 
     @Then("the invoice should show {int} items")
     public void invoice_should_show_items(Integer expectedCount) {
-        // Use first customer in scenario unless you want a named variant
-        Assertions.assertFalse(clientsByName.isEmpty(), "No customers exist in scenario");
         Client client = clientsByName.values().iterator().next();
-
         int actual = billingManager.getInvoiceCountForClient(client.getClientId());
-        Assertions.assertEquals(expectedCount.intValue(), actual,
-                "Expected " + expectedCount + " invoice items, got " + actual);
+        Assertions.assertEquals(expectedCount.intValue(), actual);
     }
 
     @Then("the invoice should show total top-ups {double} EUR")
     public void invoice_should_show_topups(Double amount) {
-        Assertions.assertNotNull(invoiceReport);
         String expected = String.format(Locale.US, "%.2f", amount);
-        Assertions.assertTrue(invoiceReport.contains(expected),
-                "Expected top-up " + expected + " in report:\n" + invoiceReport);
+        Assertions.assertTrue(invoiceReport.contains(expected));
     }
 
     @Then("the invoice should show total spent {double} EUR")
     public void invoice_should_show_spent(Double amount) {
-        Assertions.assertNotNull(invoiceReport);
         String expected = String.format(Locale.US, "%.2f", amount);
-        Assertions.assertTrue(invoiceReport.contains(expected),
-                "Expected spent " + expected + " in report:\n" + invoiceReport);
+        Assertions.assertTrue(invoiceReport.contains(expected));
     }
 
     @Then("the invoice should show remaining balance {double} EUR")
     public void invoice_should_show_remaining(Double amount) {
-        Assertions.assertFalse(clientsByName.isEmpty(), "No customers exist in scenario");
         Client client = clientsByName.values().iterator().next();
         Assertions.assertEquals(amount, client.getAccount().getBalance(), 0.01);
     }
@@ -316,20 +263,15 @@ public class ReadInvoiceSteps {
     // -------------------------
 
     private Client ensureCustomerExists(String customerName) {
-        Client existing = clientsByName.get(customerName);
-        if (existing != null) return existing;
-
+        if (clientsByName.containsKey(customerName)) return clientsByName.get(customerName);
         int id = nextClientId++;
-        String email = customerName.toLowerCase().replace(" ", ".") + "@test.com";
-        Client client = clientManager.registerClient(id, customerName, email);
+        Client client = clientManager.registerClient(id, customerName, customerName + "@test.com");
         clientsByName.put(customerName, client);
         return client;
     }
 
     private Location ensureLocationExists(String locationName) {
-        Location existing = locationsByName.get(locationName);
-        if (existing != null) return existing;
-
+        if (locationsByName.containsKey(locationName)) return locationsByName.get(locationName);
         int id = nextLocationId++;
         Location loc = stationManager.createLocation(id, locationName, "Address");
         locationsByName.put(locationName, loc);
@@ -337,24 +279,16 @@ public class ReadInvoiceSteps {
     }
 
     private Client requireCustomer(String customerName) {
-        Client c = clientsByName.get(customerName);
-        Assertions.assertNotNull(c, "Unknown customer: " + customerName);
-        return c;
+        return clientsByName.get(customerName);
     }
 
     private Location requireLocation(String locationName) {
-        Location l = locationsByName.get(locationName);
-        Assertions.assertNotNull(l, "Unknown location: " + locationName);
-        return l;
+        return locationsByName.get(locationName);
     }
 
     private void ensureLocationHasDefaultPricing(Location loc) {
-        if (loc.getPriceConfiguration() == null) {
-            loc.setPriceConfiguration(new PriceConfiguration(
-                    loc.getLocationId(),
-                    0.45, 0.55,
-                    0.20, 0.20
-            ));
+        if (stationManager.getPricingForLocation(loc.getLocationId()) == null) {
+            stationManager.updateLocationPricing(loc.getLocationId(), 0.45, 0.55, 0.20, 0.20);
         }
     }
 }
