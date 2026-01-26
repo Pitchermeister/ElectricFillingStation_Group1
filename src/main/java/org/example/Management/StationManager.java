@@ -72,32 +72,32 @@ public class StationManager {
         locations.removeIf(loc -> loc.getLocationId() == id);
     }
 
-    // PRICING
+    // --- PRICING FIX ---
     public void updateLocationPricing(int locationId, double acKWh, double dcKWh, double acMin, double dcMin) {
         Location location = getLocationById(locationId);
 
-        if (location == null || location.getChargers().isEmpty()) return;
+        if (location == null) return;
 
-        // FIX: Use location.getLocationId() instead of System.identityHashCode(...)
+        // 1. Create the pricing object
         PriceConfiguration pricing = new PriceConfiguration(
-                location.getLocationId(), // <--- CHANGED THIS
+                location.getLocationId(),
                 acKWh, dcKWh, acMin, dcMin);
 
-        // We save the price into the CHARGERS
+        // 2. ROOT CAUSE FIX: Save it to the Location object!
+        location.setPriceConfiguration(pricing);
+
+        // 3. Also propagate to existing chargers (as before)
         for (Charger charger : location.getChargers()) {
             charger.setPriceConfiguration(pricing);
         }
     }
 
-    // --- FIX IS HERE ---
     public PriceConfiguration getPricingForLocation(int locationId) {
         Location location = getLocationById(locationId);
+        if (location == null) return null;
 
-        // Safety check: if location missing or has no chargers, we can't get price
-        if (location == null || location.getChargers().isEmpty()) return null;
-
-        // RETRIEVE FROM CHARGER (because that's where we saved it!)
-        return location.getChargers().get(0).getPriceConfiguration();
+        // FIX: Return the configuration directly from the location
+        return location.getPriceConfiguration();
     }
     // -------------------
 
@@ -142,12 +142,16 @@ public class StationManager {
         for (Location loc : locations) {
             sb.append(loc.getName()).append(" [").append(loc.getAddress()).append("]\n");
 
-            PriceConfiguration p = getPricingForLocation(loc.getLocationId());
+            // Now this will work correctly because the Location has the price
+            PriceConfiguration p = loc.getPriceConfiguration();
+
             if (p != null) {
                 sb.append("  AC: €").append(p.getAcPricePerKWh()).append("/kWh+€")
                         .append(p.getAcPricePerMinute()).append("/min | DC: €")
                         .append(p.getDcPricePerKWh()).append("/kWh+€")
                         .append(p.getDcPricePerMinute()).append("/min\n");
+            } else {
+                sb.append("  Pricing: Not configured\n");
             }
 
             int available = 0;

@@ -323,7 +323,6 @@ public class Main {
 
         PriceConfiguration pc = loc.getPriceConfiguration();
 
-        // Null Check for Safety + Correct Timestamp
         if (pc != null) {
             String timeStr = LocalDateTime.now().format(D_FMT);
             System.out.println(String.format("  AC: €%s/kWh+€%s/min | DC: €%s/kWh+€%s/min (Last actualized: Time %s)",
@@ -331,6 +330,7 @@ public class Main {
                     fmt(pc.getDcPricePerKWh()), fmt(pc.getDcPricePerMinute()),
                     timeStr));
         } else {
+            // This path should ideally not be hit anymore after fixing StationManager
             System.out.println("  Pricing: Not Configured");
         }
 
