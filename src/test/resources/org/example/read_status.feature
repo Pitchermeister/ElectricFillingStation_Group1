@@ -30,3 +30,26 @@ Feature: Read Status
     When I request the network status
     Then the status should show 2 locations
     And the status should show 5 total chargers
+
+  Scenario: Cannot view status for non-existent location (error case)
+    Given the status monitoring system is initialized
+    When I request the network status for location "NonExistent"
+    Then an error should be returned for location not found
+
+  Scenario: View status with all chargers occupied (edge case)
+    Given the status monitoring system is initialized
+    And a status monitored location named "City Center" exists with 2 chargers
+    And 2 monitoring customers exist with sufficient balance
+    And both chargers are occupied by active charging sessions
+    When I request the network status
+    Then the status should show location "City Center"
+    And all chargers should show status OCCUPIED
+    And no AVAILABLE chargers should be shown
+
+  Scenario: View status with no pricing information (edge case)
+    Given the status monitoring system is initialized
+    And a status monitored location named "City Center" exists with 2 chargers
+    And location "City Center" has no pricing configured
+    When I request the network status
+    Then the status should show location "City Center"
+    And the status should indicate pricing is not available

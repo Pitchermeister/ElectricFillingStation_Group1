@@ -24,5 +24,30 @@ Feature: Create Price
     And location "City Center" pricing should have a timestamp
     And location "Airport" pricing should have a timestamp
 
+  Scenario: Update pricing multiple times for same location (edge case)
+    Given the pricing service is initialized
+    And a pricing location named "City Center" exists with 1 charger
+    When I set location "City Center" pricing: AC 0.40 EUR per kWh
+    And I set location "City Center" pricing: AC 0.60 EUR per kWh
+    Then location "City Center" should have AC price 0.60 EUR per kWh
+
+  Scenario: Set pricing with zero AC rate (edge case)
+    Given the pricing service is initialized
+    And a pricing location named "Test Location" exists with 1 charger
+    When I set pricing for location "Test Location": AC 0.00 EUR per kWh, DC 0.65 EUR per kWh, 0.20 EUR per min
+    Then location "Test Location" should have AC price 0.00 EUR per kWh
+    And location "Test Location" should have DC price 0.65 EUR per kWh
+
+  Scenario: Set pricing with very high DC rate (edge case)
+    Given the pricing service is initialized
+    And a pricing location named "Premium Location" exists with 1 charger
+    When I set pricing for location "Premium Location": AC 0.45 EUR per kWh, DC 5.99 EUR per kWh, 0.20 EUR per min
+    Then location "Premium Location" should have DC price 5.99 EUR per kWh
+
+  Scenario: Attempt to set pricing for non-existent location (error case)
+    Given the pricing service is initialized
+    When I attempt to set pricing for location "NonExistent": AC 0.45 EUR per kWh, DC 0.65 EUR per kWh, 0.20 EUR per min
+    Then an error should be returned for non-existent location
+
 
     # Datum und Uhrzeit fehlt -> denke es ist erledigt mit pricing should have timestamp
